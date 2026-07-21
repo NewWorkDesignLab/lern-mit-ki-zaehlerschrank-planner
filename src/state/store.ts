@@ -6,7 +6,7 @@
 
 import { useReducer } from 'react';
 import type { ErrorHistory } from '../domain/hints';
-import { emptyHistory } from '../domain/hints';
+import { emptyHistory, historyKey } from '../domain/hints';
 import { validateSlot } from '../domain/rules';
 import type { LevelDefinition, Placement } from '../domain/types';
 import { allSlots } from '../domain/rules';
@@ -38,12 +38,13 @@ export function makeReducer(level: LevelDefinition) {
 
         const placement: Placement = { ...state.placement, [action.slotId]: action.itemId };
 
-        // Adaptive Historie: eine falsche Platzierung zählt einmal.
-        // Leere Slots sind kein "Denkfehler" und werden nicht gezählt.
+        // Adaptive Historie: eine falsche Platzierung zählt einmal – gezielt
+        // pro Fehlstelle (Slot + Fehlerart). Leere Slots werden nicht gezählt.
         const violation = validateSlot(level, slot, placement);
         let history = state.history;
         if (violation && violation.code !== 'SLOT_EMPTY') {
-          history = { ...history, [violation.code]: (history[violation.code] ?? 0) + 1 };
+          const k = historyKey(violation.slotId, violation.code);
+          history = { ...history, [k]: (history[k] ?? 0) + 1 };
         }
         return { placement, history };
       }

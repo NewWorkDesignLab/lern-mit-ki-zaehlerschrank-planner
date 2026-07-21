@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { ZS_PV_LEVEL } from '../levels/zs-pv';
-import type { Placement } from './types';
+import { ZS_WP_LEVEL } from '../levels/zs-wp';
+import type { LevelDefinition, Placement } from './types';
 import { allSlots, validateLevel, validateSlot } from './rules';
 
 function slot(id: string) {
   const s = allSlots(ZS_PV_LEVEL).find((x) => x.id === id);
+  if (!s) throw new Error(`Slot ${id} nicht gefunden`);
+  return s;
+}
+
+function slotOf(level: LevelDefinition, id: string) {
+  const s = allSlots(level).find((x) => x.id === id);
   if (!s) throw new Error(`Slot ${id} nicht gefunden`);
   return s;
 }
@@ -96,5 +103,43 @@ describe('Gesamt-Level', () => {
     expect(result.solved).toBe(false);
     expect(result.progress).toBe(0);
     expect(result.violations.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Level 2 (Wärmepumpe): SG-Ready / Lastmanagement', () => {
+  const WP_SOLUTION: Placement = {
+    'slot-rcd': 'rcd-a',
+    'slot-ls-wp': 'ls-b16',
+    'slot-sg-ready': 'sg-schuetz',
+    'slot-ls-speicher': 'ls-b16',
+    'slot-ls-mf': 'ls-b16',
+    'slot-ls-aussen2': 'ls-b16',
+  };
+
+  it('Ein LS im SG-Ready-Slot ist falsch – WP muss schaltbar sein (Steuerelement fehlt)', () => {
+    const v = validateSlot(ZS_WP_LEVEL, slotOf(ZS_WP_LEVEL, 'slot-sg-ready'), {
+      'slot-sg-ready': 'ls-b16',
+    });
+    expect(v?.code).toBe('CONTROL_ELEMENT_MISSING');
+  });
+
+  it('Das SG-Ready-Schütz im Steuer-Slot ist korrekt', () => {
+    const v = validateSlot(ZS_WP_LEVEL, slotOf(ZS_WP_LEVEL, 'slot-sg-ready'), {
+      'slot-sg-ready': 'sg-schuetz',
+    });
+    expect(v).toBeNull();
+  });
+
+  it('RCD Typ A ist am WP-Zweig korrekt (kein glatter Gleichfehlerstrom)', () => {
+    const v = validateSlot(ZS_WP_LEVEL, slotOf(ZS_WP_LEVEL, 'slot-rcd'), {
+      'slot-rcd': 'rcd-a',
+    });
+    expect(v).toBeNull();
+  });
+
+  it('Die Musterlösung löst die Verdrahtung von Level 2 vollständig', () => {
+    const result = validateLevel(ZS_WP_LEVEL, WP_SOLUTION);
+    expect(result.violations).toHaveLength(0);
+    expect(result.solved).toBe(true);
   });
 });

@@ -1,24 +1,77 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { Palette } from './components/Palette';
 import { Board } from './components/Board';
 import { InfoPanel } from './components/InfoPanel';
 import { HintPanel } from './components/HintPanel';
 import { CompletionScreen } from './components/CompletionScreen';
+import { LevelSelect } from './components/LevelSelect';
+import { LoadManagementAmpel } from './components/LoadManagementAmpel';
 import { buildHints } from './domain/hints';
 import type { Violation } from './domain/rules';
 import { validateLevel } from './domain/rules';
-import type { ViewMode } from './domain/types';
-import { ZS_PV_LEVEL } from './levels/zs-pv';
+import type { LevelDefinition, ViewMode } from './domain/types';
+import { LEVEL_LIST, nextLevel } from './levels/registry';
 import { useLevelState } from './state/store';
 
+// ---------------------------------------------------------------------------
+// App: Navigation zwischen Level-Auswahl und Spielansicht + Fortschritt.
+// ---------------------------------------------------------------------------
+
 export function App() {
-  const level = ZS_PV_LEVEL;
+  const [completed, setCompleted] = useState<ReadonlySet<string>>(new Set());
+  const [currentId, setCurrentId] = useState<string | null>(null);
+
+  const markCompleted = useCallback((id: string) => {
+    setCompleted((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const current = currentId ? LEVEL_LIST.find((l) => l.id === currentId) : undefined;
+
+  if (!current) {
+    return (
+      <LevelSelect levels={LEVEL_LIST} completed={completed} onPick={setCurrentId} />
+    );
+  }
+
+  return (
+    <LevelView
+      key={current.id}
+      level={current}
+      onExit={() => setCurrentId(null)}
+      onComplete={() => markCompleted(current.id)}
+      onNext={() => {
+        const nxt = nextLevel(current.id);
+        setCurrentId(nxt ? nxt.id : null);
+      }}
+      hasNext={!!nextLevel(current.id)}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// LevelView: eine spielbare Level-Instanz (durch key={level.id} frisch je Level).
+// ---------------------------------------------------------------------------
+
+interface LevelViewProps {
+  level: LevelDefinition;
+  onExit: () => void;
+  onComplete: () => void;
+  onNext: () => void;
+  hasNext: boolean;
+}
+
+function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProps) {
   const [state, dispatch] = useLevelState(level);
   const [view, setView] = useState<ViewMode>('game');
   const [infoKey, setInfoKey] = useState<string | null>(null);
-  // Klick-zum-Platzieren: aktuell in der Palette gewähltes Bauteil.
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [ampelSolved, setAmpelSolved] = useState(false);
 
   const selectPaletteItem = (id: string, info: string) => {
     setSelectedItemId((prev) => (prev === id ? null : id));
@@ -26,7 +79,6 @@ export function App() {
   };
 
   const handleSlotClick = (slotId: string, slotInfoKey: string) => {
-    // Ist ein Bauteil gewählt und der Slot frei/passend? -> platzieren.
     if (selectedItemId) {
       const slot = level.branches.flatMap((b) => b.slots).find((s) => s.id === slotId);
       if (slot && !slot.locked && !slot.prefilledItemId) {
@@ -37,7 +89,6 @@ export function App() {
     setInfoKey(slotInfoKey);
   };
 
-  // Zentrale Validierung – speist Board-Status, Fortschritt und Hinweise.
   const validation = useMemo(
     () => validateLevel(level, state.placement),
     [level, state.placement],
@@ -54,11 +105,24 @@ export function App() {
     [state.history, validation.violations],
   );
 
-  // Adaptiv: bei Stufe 3 (wiederholter Fehler) passendes Infofeld automatisch öffnen.
+  // Adaptiv: bei Stufe 3 passendes Infofeld automatisch öffnen.
   const autoOpen = hints.find((h) => h.level === 3 && h.autoOpenInfoKey)?.autoOpenInfoKey;
   useEffect(() => {
     if (autoOpen) setInfoKey(autoOpen);
   }, [autoOpen]);
+
+  // Gesamt-Lösung: Verdrahtung korrekt UND (falls vorhanden) Lastmanagement gemeistert.
+  const wiringSolved = validation.solved;
+  const solved = wiringSolved && (!level.loadManagement || ampelSolved);
+
+  // onComplete genau einmal melden.
+  const reported = useRef(false);
+  useEffect(() => {
+    if (solved && !reported.current) {
+      reported.current = true;
+      onComplete();
+    }
+  }, [solved, onComplete]);
 
   return (
     <div className="app">
@@ -67,9 +131,12 @@ export function App() {
         view={view}
         progress={validation.progress}
         onView={setView}
+        onExit={onExit}
         onReset={() => {
           dispatch({ type: 'RESET' });
           setInfoKey(null);
+          setSelectedItemId(null);
+          reported.current = false;
         }}
       />
 
@@ -100,6 +167,14 @@ export function App() {
             onSlotClick={handleSlotClick}
             onInfo={setInfoKey}
           />
+
+          {level.loadManagement && (
+            <LoadManagementAmpel
+              data={level.loadManagement}
+              enabled={wiringSolved}
+              onSolvedChange={setAmpelSolved}
+            />
+          )}
         </div>
 
         <aside className="sidebar">
@@ -109,18 +184,44 @@ export function App() {
       </main>
 
       <footer className="app-footer">
-        Prototyp · fachlich korrekt nach Vorlage EBZ Dresden (ZS-PV) · Spiel-/Fachansicht
-        aus einem gemeinsamen Datenmodell
+        Prototyp · fachlich korrekt nach Vorlage EBZ Dresden · Spiel-/Fachansicht aus
+        einem gemeinsamen Datenmodell
       </footer>
 
-      {validation.solved && (
+      {solved && (
         <CompletionScreen
+          title={
+            level.id === 'zs-wp'
+              ? 'Wärmepumpe smart eingebunden!'
+              : 'Schrank fachgerecht aufgebaut!'
+          }
+          message={completionMessage(level.id)}
           onRestart={() => {
             dispatch({ type: 'RESET' });
             setInfoKey(null);
+            setSelectedItemId(null);
+            setAmpelSolved(false);
+            reported.current = false;
           }}
+          onExit={onExit}
+          onNext={hasNext ? onNext : undefined}
+          nextLabel="Nächstes Level"
         />
       )}
     </div>
+  );
+}
+
+function completionMessage(levelId: string): string {
+  if (levelId === 'zs-wp') {
+    return (
+      'Der Schrank ist fachgerecht verdrahtet und die Wärmepumpe läuft über das ' +
+      'SG-Ready-Schütz am Lastmanagement: Freigabe bei PV-Überschuss, Sperre in der ' +
+      'Abendspitze und beim EVU-Signal. Aktive Steuerung statt nur passivem Schutz.'
+    );
+  }
+  return (
+    'Alle Verbraucher sind versorgt, der Wechselrichter-/Wallbox-Zweig ist mit RCD Typ B ' +
+    'geschützt, die Endstromkreise korrekt dimensioniert und der Überspannungsschutz sitzt.'
   );
 }

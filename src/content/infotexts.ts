@@ -107,6 +107,37 @@ export const INFOTEXTS: Record<string, InfoText> = {
     example: 'Ein 16-A-LS trägt kurzfristig mehr als 16 A – er löst nicht in derselben Sekunde aus.',
   },
 
+  'sg-ready': {
+    title: 'SG-Ready-Schütz – die „Ampel" der Wärmepumpe',
+    body:
+      'SG-Ready („Smart Grid Ready") ist eine Schnittstelle, über die das ' +
+      'Lastmanagement die Wärmepumpe aktiv steuert – anders als ein Schutzschalter, ' +
+      'der nur im Fehlerfall auslöst. Über ein Schütz (schaltbarer Leistungskontakt) ' +
+      'wird die WP freigegeben, normal betrieben oder gesperrt/gedrosselt. Eine feste ' +
+      'Verdrahtung ohne Schütz kann das Lastmanagement nicht steuern.',
+    example:
+      'Hier: +ZS2-Q1. Bei PV-Überschuss → Freigabe (grün); in der Abendspitze oder bei ' +
+      'EVU-Sperrsignal → Sperre (rot), damit der Hausanschluss nicht überlastet wird.',
+  },
+
+  'energy-meter': {
+    title: 'Zähler & Energy Meter (fürs Lastmanagement)',
+    body:
+      'Der Zähler erfasst die Energie; das Energy Meter misst zusätzlich den aktuellen ' +
+      'Leistungsfluss am Hausanschluss. Diese Messwerte braucht das Lastmanagement, um ' +
+      'zu entscheiden, wann die „Ampel" der Wärmepumpe auf Freigabe oder Sperre geht.',
+    example: 'Hier: +ZS2-P1 (Zähler) und +ZS2-J1 (Energy Meter) – fest im Zählerfeld.',
+  },
+
+  speicherheizung: {
+    title: 'Speicher-/Zusatzheizung',
+    body:
+      'Die Speicherheizung lädt einen Wärmespeicher. Genau er macht das Lastmanagement ' +
+      'möglich: Wird die WP bei PV-Überschuss freigegeben, „lädt" sie Wärme vor, die die ' +
+      'Abendspitze überbrückt, wenn die Ampel auf Sperre steht.',
+    example: 'Hier: +ZS2-X3, abgesichert mit einem eigenen Leitungsschutzschalter.',
+  },
+
   load: {
     title: 'Verbraucher / Abgang',
     body:

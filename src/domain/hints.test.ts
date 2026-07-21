@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Violation } from './rules';
-import { buildHints, emptyHistory, hintLevelFor, recordViolations } from './hints';
+import {
+  buildHints,
+  emptyHistory,
+  hintLevelFor,
+  historyKey,
+  recordViolations,
+} from './hints';
 
 const rcdViolation: Violation = {
   slotId: 'slot-rcd-wr',
@@ -8,6 +14,13 @@ const rcdViolation: Violation = {
   code: 'RCD_TYPE_MISSING_TYPE_B',
   message: 'Typ A erkennt glatte Gleichfehlerströme nicht.',
   infoKey: 'rcd-type-b',
+};
+
+// Gleiche Fehlerart, aber andere Fehlstelle (anderer Slot).
+const rcdViolationOtherSlot: Violation = {
+  ...rcdViolation,
+  slotId: 'slot-rcd-end',
+  bmk: '+ZS2-F5',
 };
 
 const emptyViolation: Violation = {
@@ -25,38 +38,57 @@ describe('Eskalationsstufen', () => {
   it('5x Fehler bleibt Stufe 3', () => expect(hintLevelFor(5)).toBe(3));
 });
 
-describe('Fehlerhistorie', () => {
-  it('zählt wiederkehrende Fehlercodes hoch', () => {
+describe('Fehlerhistorie je Fehlstelle', () => {
+  it('zählt wiederkehrende Fehler an derselben Stelle hoch', () => {
     let h = emptyHistory();
     h = recordViolations(h, [rcdViolation]);
     h = recordViolations(h, [rcdViolation]);
-    expect(h.RCD_TYPE_MISSING_TYPE_B).toBe(2);
+    expect(h[historyKey('slot-rcd-wr', 'RCD_TYPE_MISSING_TYPE_B')]).toBe(2);
   });
 
-  it('leere Slots werden NICHT als Denkfehler hochgezählt', () => {
+  it('zählt GEZIELT pro Fehlstelle – gleicher Fehler an anderem Slot vermischt nicht', () => {
+    let h = emptyHistory();
+    h = recordViolations(h, [rcdViolation]);
+    h = recordViolations(h, [rcdViolation]);
+    h = recordViolations(h, [rcdViolationOtherSlot]);
+    expect(h[historyKey('slot-rcd-wr', 'RCD_TYPE_MISSING_TYPE_B')]).toBe(2);
+    expect(h[historyKey('slot-rcd-end', 'RCD_TYPE_MISSING_TYPE_B')]).toBe(1);
+  });
+
+  it('leere Slots werden NICHT hochgezählt', () => {
     let h = emptyHistory();
     h = recordViolations(h, [emptyViolation]);
     h = recordViolations(h, [emptyViolation]);
-    expect(h.SLOT_EMPTY).toBe(0);
+    expect(h[historyKey('slot-uss', 'SLOT_EMPTY')]).toBeUndefined();
   });
 });
 
-describe('Hinweis-Erzeugung', () => {
-  it('öffnet bei Stufe 3 automatisch das passende Infofeld', () => {
+describe('Stufengerechte Hinweistexte', () => {
+  it('Stufe 1 gibt nur einen Anstoß OHNE fachliche Begründung', () => {
+    const h = recordViolations(emptyHistory(), [rcdViolation]);
+    const [hint] = buildHints(h, [rcdViolation]);
+    expect(hint.level).toBe(1);
+    expect(hint.message).not.toContain('Gleichfehlerströme');
+    expect(hint.autoOpenInfoKey).toBeUndefined();
+  });
+
+  it('Stufe 2 liefert die konkrete fachliche Erklärung', () => {
+    let h = recordViolations(emptyHistory(), [rcdViolation]);
+    h = recordViolations(h, [rcdViolation]);
+    const [hint] = buildHints(h, [rcdViolation]);
+    expect(hint.level).toBe(2);
+    expect(hint.message).toContain('Gleichfehlerströme');
+    expect(hint.autoOpenInfoKey).toBeUndefined();
+  });
+
+  it('Stufe 3 öffnet zusätzlich das passende Infofeld automatisch', () => {
     let h = emptyHistory();
     h = recordViolations(h, [rcdViolation]);
     h = recordViolations(h, [rcdViolation]);
     h = recordViolations(h, [rcdViolation]);
-    const hints = buildHints(h, [rcdViolation]);
-    expect(hints[0].level).toBe(3);
-    expect(hints[0].autoOpenInfoKey).toBe('rcd-type-b');
-  });
-
-  it('öffnet bei Stufe 1 KEIN Infofeld automatisch', () => {
-    const h = recordViolations(emptyHistory(), [rcdViolation]);
-    const hints = buildHints(h, [rcdViolation]);
-    expect(hints[0].level).toBe(1);
-    expect(hints[0].autoOpenInfoKey).toBeUndefined();
+    const [hint] = buildHints(h, [rcdViolation]);
+    expect(hint.level).toBe(3);
+    expect(hint.autoOpenInfoKey).toBe('rcd-type-b');
   });
 
   it('leerer Slot bleibt dezente Stufe 1 ohne Auto-Infofeld', () => {

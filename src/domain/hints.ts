@@ -1,15 +1,19 @@
 // ---------------------------------------------------------------------------
 // Adaptiver Hinweis-Mechanismus (deterministisch, ohne LLM)
-// Zählt wiederkehrende Fehlercodes und eskaliert die Unterstützung in Stufen:
-//   1. nur visuelle Markierung        (am Bauteil, kein Text)
-//   2. kurzer Erklärtext              (im HintPanel)
-//   3. passendes Infofeld automatisch öffnen
+//
+// GEZIELTE Staffelung in zwei Dimensionen:
+//  a) pro konkreter Fehlstelle (Slot + Fehlerart), nicht global vermischt –
+//     die Hilfe eskaliert genau dort, wo wiederholt derselbe Fehler passiert.
+//  b) inhaltlich gestuft:
+//       Stufe 1  nur dezenter Anstoß ("schau dir das an") – KEINE Begründung
+//       Stufe 2  konkrete fachliche Erklärung im HintPanel
+//       Stufe 3  Erklärung + passendes Infofeld wird automatisch geöffnet
 // ---------------------------------------------------------------------------
 
 import type { ErrorCode, Violation } from './rules';
 
-/** Zählt, wie oft ein bestimmter Fehlercode bereits aufgetreten ist. */
-export type ErrorHistory = Record<ErrorCode, number>;
+/** Zähler je Fehlstelle. Schlüssel = `${slotId}::${code}`. */
+export type ErrorHistory = Record<string, number>;
 
 export type HintLevel = 1 | 2 | 3;
 
@@ -18,61 +22,84 @@ export interface Hint {
   bmk: string;
   code: ErrorCode;
   level: HintLevel;
+  /** Wie oft dieser Fehler an dieser Stelle schon auftrat. */
+  count: number;
+  /** Stufengerechter Text (progressiv mehr Hilfe). */
   message: string;
   /** Nur bei Stufe 3 gesetzt: dieses Infofeld soll automatisch aufgehen. */
   autoOpenInfoKey?: string;
 }
 
+export function historyKey(slotId: string, code: ErrorCode): string {
+  return `${slotId}::${code}`;
+}
+
 export function emptyHistory(): ErrorHistory {
-  return {
-    RCD_TYPE_MISSING_TYPE_B: 0,
-    RCD_TYPE_UNNECESSARY_TYPE_B: 0,
-    LS_RATING_TOO_HIGH: 0,
-    LS_RATING_TOO_LOW: 0,
-    LS_WRONG_TRIP_CHAR: 0,
-    USS_MISSING: 0,
-    WRONG_COMPONENT_KIND: 0,
-    SLOT_EMPTY: 0,
-  };
+  return {};
 }
 
 /**
- * Verbucht die aktuell offenen Verletzungen in der Historie.
+ * Verbucht die aktuell offenen Verletzungen je Fehlstelle.
  * "SLOT_EMPTY" wird bewusst NICHT hochgezählt – ein leerer Slot ist kein
- * Denkfehler, der eskalierende Hilfe braucht.
+ * wiederkehrender Denkfehler, der eskalierende Hilfe braucht.
  */
 export function recordViolations(history: ErrorHistory, violations: Violation[]): ErrorHistory {
   const next = { ...history };
   for (const v of violations) {
     if (v.code === 'SLOT_EMPTY') continue;
-    next[v.code] = (next[v.code] ?? 0) + 1;
+    const k = historyKey(v.slotId, v.code);
+    next[k] = (next[k] ?? 0) + 1;
   }
   return next;
 }
 
-/** Leitet aus Häufigkeit die Eskalationsstufe ab. */
+/** Leitet aus der Häufigkeit an DIESER Fehlstelle die Stufe ab. */
 export function hintLevelFor(count: number): HintLevel {
   if (count >= 3) return 3;
   if (count === 2) return 2;
   return 1;
 }
 
+/** Stufengerechter Hinweistext – progressiv mehr Hilfe. */
+export function stageMessage(level: HintLevel, violation: Violation): string {
+  switch (level) {
+    case 1:
+      // Nur Anstoß, bewusst OHNE fachliche Begründung (Lernen anregen).
+      return 'Hier passt noch etwas nicht – sieh dir dieses Bauteil noch einmal an.';
+    case 2:
+      // Konkrete fachliche Erklärung.
+      return violation.message;
+    case 3:
+      // Erklärung + Verweis auf das automatisch geöffnete Infofeld.
+      return `${violation.message} Die ausführliche Erklärung ist rechts im Feld „Fachwissen" geöffnet.`;
+  }
+}
+
 /**
- * Erzeugt für die aktuell offenen Verletzungen passende Hinweise auf Basis
- * der Fehlerhistorie. Leere Slots liefern nur eine dezente Stufe-1-Markierung.
+ * Erzeugt für die aktuell offenen Verletzungen stufengerechte Hinweise.
+ * Leere Slots bleiben ein dezenter Stufe-1-Anstoß ohne Auto-Infofeld.
  */
 export function buildHints(history: ErrorHistory, violations: Violation[]): Hint[] {
   return violations.map((v) => {
     if (v.code === 'SLOT_EMPTY') {
-      return { slotId: v.slotId, bmk: v.bmk, code: v.code, level: 1, message: v.message };
+      return {
+        slotId: v.slotId,
+        bmk: v.bmk,
+        code: v.code,
+        level: 1 as HintLevel,
+        count: 0,
+        message: v.message,
+      };
     }
-    const level = hintLevelFor(history[v.code] ?? 1);
+    const count = history[historyKey(v.slotId, v.code)] ?? 1;
+    const level = hintLevelFor(count);
     return {
       slotId: v.slotId,
       bmk: v.bmk,
       code: v.code,
       level,
-      message: v.message,
+      count,
+      message: stageMessage(level, v),
       autoOpenInfoKey: level === 3 ? v.infoKey : undefined,
     };
   });

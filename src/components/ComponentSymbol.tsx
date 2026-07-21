@@ -21,6 +21,7 @@ const COLORS: Record<ComponentKind, string> = {
   USS: '#c58cff',
   LS: '#ffc23d',
   RCD: '#45d69a',
+  CONTACTOR: '#5ad1e6',
   KAMMSCHIENE: '#8fb4ff',
   LOAD: '#8fb4ff',
 };
@@ -94,6 +95,16 @@ function gameGlyph(kind: ComponentKind, rcdType: RcdType | undefined, color: str
           <path d="M15 12v7l6 2-6 9" />
         </>
       );
+    case 'CONTACTOR':
+      // Spielansicht: kleine Ampel (aktives Schalten fürs Lastmanagement).
+      return (
+        <>
+          <rect x="14" y="6" width="12" height="28" rx="4" fill={color} opacity="0.2" />
+          <circle cx="20" cy="12" r="3" fill="#45d69a" stroke="none" />
+          <circle cx="20" cy="20" r="3" fill="#ffc23d" stroke="none" />
+          <circle cx="20" cy="28" r="3" fill="#ff6b6b" stroke="none" />
+        </>
+      );
     case 'KAMMSCHIENE':
       return (
         <>
@@ -157,6 +168,16 @@ function schematicGlyph(kind: ComponentKind, rcdType: RcdType | undefined) {
           <path d="M20 6v7M20 27v7" />
           <path d="M20 13l6 12" />
           <rect x="16" y="15" width="8" height="8" rx="1" />
+        </>
+      );
+    case 'CONTACTOR':
+      // Fachansicht: Schütz-Schaltzeichen (Kontakt mit Spule/Betätigung).
+      return (
+        <>
+          <path d="M20 6v6M20 26v8" />
+          <path d="M20 12l7 11" />
+          <path d="M14 16h5" />
+          <rect x="23" y="24" width="8" height="6" rx="1" />
         </>
       );
     case 'KAMMSCHIENE':

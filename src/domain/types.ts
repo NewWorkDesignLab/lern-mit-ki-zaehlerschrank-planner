@@ -12,6 +12,7 @@ export type ComponentKind =
   | 'USS' //   Überspannungsschutzgerät
   | 'LS' //   Leitungsschutzschalter
   | 'RCD' //   Fehlerstromschutzschalter (RCD/FI)
+  | 'CONTACTOR' //   Schütz / SG-Ready-Steuerkontakt (aktives Schalten fürs Lastmanagement)
   | 'KAMMSCHIENE' //   Sammelschiene für Endstromkreise
   | 'LOAD'; //   Verbraucher / Abgang (Ziel)
 
@@ -103,15 +104,44 @@ export interface Branch {
   slots: Slot[];
 }
 
+/**
+ * Ein Situations-Szenario für die SG-Ready-„Ampel" (Lastmanagement).
+ * Der Azubi entscheidet, ob die Wärmepumpe freigegeben, normal betrieben oder
+ * gesperrt/gedrosselt werden soll.
+ */
+export type AmpelState = 'FREIGABE' | 'NORMAL' | 'SPERRE';
+
+export interface AmpelSituation {
+  id: string;
+  label: string;
+  detail: string;
+  correct: AmpelState;
+  explanation: string;
+}
+
+/** Optionaler, levelspezifischer Lastmanagement-Teil (aktive „Ampel"-Mechanik). */
+export interface LoadManagement {
+  intro: string;
+  situations: AmpelSituation[];
+}
+
 /** Eine vollständige Level-Definition, rein datengetrieben. */
 export interface LevelDefinition {
   id: string;
+  /** Reihenfolge in der Progression (1 = erstes Level). */
+  order: number;
+  /** Emoji-Kürzel für die Level-Auswahl. */
+  icon: string;
   title: string;
   subtitle: string;
+  /** Kurzbeschreibung des Lernfokus (für die Level-Auswahl). */
+  concept: string;
   /** Rahmenerzählung (Modus B, minimal). */
   narrative: string;
   branches: Branch[];
   palette: PaletteItem[];
+  /** Optional: aktives Lastmanagement (nur für Level mit „Ampel"-Mechanik). */
+  loadManagement?: LoadManagement;
 }
 
 /** Ansichtsmodus für den Dual-View-Toggle. */

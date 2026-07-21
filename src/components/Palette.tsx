@@ -16,6 +16,7 @@ interface Props {
 
 const GROUP_LABEL: Record<string, string> = {
   USS: 'Überspannungsschutz',
+  CONTACTOR: 'Lastmanagement / Steuerung',
   RCD: 'Fehlerstromschutz (RCD)',
   LS: 'Leitungsschutz (LS)',
 };
@@ -79,5 +80,6 @@ function chipSubtitle(item: PaletteItem): string {
   if (item.kind === 'RCD') return `${item.ratedResidualMa ?? 30} mA · Erkennungstyp ${item.rcdType}`;
   if (item.kind === 'LS') return `Charakteristik ${item.tripChar} · ${item.ratingA} A`;
   if (item.kind === 'USS') return 'transiente Überspannung ableiten';
+  if (item.kind === 'CONTACTOR') return 'schaltet die WP aktiv (SG-Ready)';
   return '';
 }

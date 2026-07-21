@@ -7,19 +7,20 @@ interface Props {
   progress: number;
   onView: (v: ViewMode) => void;
   onReset: () => void;
+  onExit: () => void;
 }
 
-export function Toolbar({ level, view, progress, onView, onReset }: Props) {
+export function Toolbar({ level, view, progress, onView, onReset, onExit }: Props) {
   const pct = Math.round(progress * 100);
   return (
     <header className="toolbar">
-      <div className="brand">
+      <button className="brand brand-btn" onClick={onExit} title="Zur Level-Auswahl">
         <div className="brand-mark">⚡</div>
         <div className="brand-text">
           <b>Lern mit KI</b>
-          <span>Zählerschrank-Trainer</span>
+          <span>← Level-Auswahl</span>
         </div>
-      </div>
+      </button>
 
       <div className="toolbar-level">
         <b>{level.title}</b>

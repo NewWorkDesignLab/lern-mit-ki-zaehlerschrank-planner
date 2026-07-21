@@ -13,8 +13,11 @@ import type { LevelDefinition } from '../domain/types';
 
 export const ZS_PV_LEVEL: LevelDefinition = {
   id: 'zs-pv',
+  order: 1,
+  icon: '☀️',
   title: 'Zählerschrank PV',
   subtitle: 'Prosumer-Anschluss: PV-Erzeuger, Wallbox & Endstromkreise',
+  concept: 'Schutztechnik: richtiger RCD-Typ (A/B), Leitungsschutz & Überspannungsschutz',
   narrative:
     'Haus 3 im Quartier wird zum Prosumer: Auf dem Dach liegt eine PV-Anlage, vor der ' +
     'Tür eine Wallbox. Bau den Zählerschrank fachgerecht auf, damit erzeugter Strom ' +
@@ -152,8 +155,4 @@ export const ZS_PV_LEVEL: LevelDefinition = {
     { id: 'ls-b25', kind: 'LS', label: 'LS B 25 A', ratingA: 25, tripChar: 'B', infoKey: 'ls-cross-section' },
     { id: 'ls-k20', kind: 'LS', label: 'LS K 20 A', ratingA: 20, tripChar: 'K', infoKey: 'ls-characteristic' },
   ],
-};
-
-export const LEVELS: Record<string, LevelDefinition> = {
-  [ZS_PV_LEVEL.id]: ZS_PV_LEVEL,
 };

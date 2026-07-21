@@ -14,6 +14,7 @@ export type ErrorCode =
   | 'LS_RATING_TOO_LOW' // LS löst schon im Normalbetrieb der Last aus
   | 'LS_WRONG_TRIP_CHAR' // falsche Auslösecharakteristik
   | 'USS_MISSING' // Überspannungsschutz fehlt trotz Anlagenrisiko
+  | 'CONTROL_ELEMENT_MISSING' // WP fest verdrahtet statt über SG-Ready schaltbar
   | 'WRONG_COMPONENT_KIND' // völlig falsche Bauteilart im Slot
   | 'SLOT_EMPTY'; // Pflicht-Slot noch unbelegt
 
@@ -99,6 +100,15 @@ export function validateSlot(
 
   // 1) Völlig falsche Bauteilart (z.B. RCD wo ein LS hingehört)?
   if (item.kind !== slot.accepts) {
+    // Spezialfall Lastmanagement: WP-Freigabe braucht ein SCHALTBARES Steuerelement
+    // (Schütz/SG-Ready), nicht einen fest verdrahteten Leitungsschutzschalter.
+    if (slot.accepts === 'CONTACTOR') {
+      return v(
+        'CONTROL_ELEMENT_MISSING',
+        `${slot.bmk}: Die Wärmepumpe muss über das Lastmanagement schaltbar sein – hier gehört ein SG-Ready-Schütz hin, keine feste Verdrahtung.`,
+        'sg-ready',
+      );
+    }
     return v(
       'WRONG_COMPONENT_KIND',
       `${slot.bmk}: Ein ${item.label} passt hier fachlich nicht.`,
