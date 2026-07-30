@@ -1,49 +1,59 @@
 /* ==========================================================================
    Lern mit KI – Zählerschrank-Trainer · globales Theme
-   Dunkles "Schaltschrank/Energie"-Look-and-feel mit Energie-Akzent.
+   Helles "Schaltschrank/Energie"-Look-and-feel mit Energie-Akzent.
    ========================================================================== */
 
 :root {
-  /* Flächen */
-  --bg-0: #0b1020;
-  --bg-1: #121a30;
-  --bg-2: #18233f;
-  --bg-3: #1f2d4f;
-  --panel: rgba(24, 35, 63, 0.72);
-  --panel-border: rgba(120, 150, 210, 0.16);
-  --panel-border-strong: rgba(120, 150, 210, 0.34);
+  /* Flächen (hell -> dunkler gestaffelt) */
+  --bg-0: #ffffff;
+  --bg-1: #f6f8fc;
+  --bg-2: #eef2f9;
+  --bg-3: #e2e8f2;
+  --panel: rgba(255, 255, 255, 0.86);
+  --panel-border: rgba(15, 23, 42, 0.10);
+  --panel-border-strong: rgba(15, 23, 42, 0.22);
+
+  /* Overlay-Tönungen (ersetzen die weißen Aufheller des Dark Themes) */
+  --tint-weak: rgba(15, 23, 42, 0.03);
+  --tint: rgba(15, 23, 42, 0.05);
+  --tint-strong: rgba(15, 23, 42, 0.08);
 
   /* Text */
-  --text-0: #eaf0ff;
-  --text-1: #b7c3e0;
-  --text-2: #8593b6;
-  --text-3: #5f6d92;
+  --text-0: #0f172a;
+  --text-1: #334155;
+  --text-2: #64748b;
+  --text-3: #94a3b8;
 
-  /* Akzente */
-  --accent: #ffc23d;         /* Energie / Strom (gelb-amber) */
-  --accent-soft: rgba(255, 194, 61, 0.14);
-  --power: #ffd166;
-  --ok: #45d69a;             /* korrekt */
-  --ok-soft: rgba(69, 214, 154, 0.14);
-  --warn: #ffb454;
-  --err: #ff6b6b;            /* Fehler / Überlast */
-  --err-soft: rgba(255, 107, 107, 0.14);
-  --info: #62b6ff;
+  /* Akzente – auf Weiß abgestimmt (ausreichender Kontrast) */
+  --accent: #d97706;         /* Energie / Strom (amber) – Flächen, Rahmen, Icons */
+  --accent-text: #b45309;    /* dunklere Variante für Fließtext/Labels */
+  --accent-soft: rgba(217, 119, 6, 0.12);
+  --power: #f59e0b;
+  --ok: #059669;             /* korrekt */
+  --ok-text: #047857;        /* dunklere Variante für Fließtext */
+  --ok-soft: rgba(5, 150, 105, 0.12);
+  --warn: #d97706;
+  --warn-text: #b45309;
+  --warn-soft: rgba(217, 119, 6, 0.12);
+  --err: #dc2626;            /* Fehler / Überlast */
+  --err-text: #b91c1c;
+  --err-soft: rgba(220, 38, 38, 0.10);
+  --info: #2563eb;
 
   /* Leitungsfarben je Zweig */
-  --wire-supply: #ffc23d;
-  --wire-generator: #7ee0c0;
-  --wire-load: #8fb4ff;
+  --wire-supply: #d97706;
+  --wire-generator: #0d9488;
+  --wire-load: #2563eb;
 
   --radius: 16px;
   --radius-sm: 10px;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.28);
+  --shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --shadow-sm: 0 2px 10px rgba(15, 23, 42, 0.07);
 
   --font: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
   --mono: 'Cascadia Code', 'Consolas', 'SFMono-Regular', ui-monospace, monospace;
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * {
@@ -61,9 +71,9 @@ body {
   font-family: var(--font);
   color: var(--text-0);
   background:
-    radial-gradient(1200px 700px at 82% -8%, rgba(255, 194, 61, 0.10), transparent 60%),
-    radial-gradient(1000px 700px at 6% 108%, rgba(98, 182, 255, 0.10), transparent 55%),
-    linear-gradient(160deg, var(--bg-0), var(--bg-1) 60%, #0a0f1e);
+    radial-gradient(1200px 700px at 82% -8%, rgba(245, 158, 11, 0.10), transparent 60%),
+    radial-gradient(1000px 700px at 6% 108%, rgba(37, 99, 235, 0.08), transparent 55%),
+    linear-gradient(160deg, var(--bg-0), var(--bg-1) 55%, var(--bg-2));
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
@@ -124,7 +134,7 @@ button {
   gap: 18px;
   padding: 14px 22px;
   border-bottom: 1px solid var(--panel-border);
-  background: linear-gradient(180deg, rgba(18, 26, 48, 0.9), rgba(11, 16, 32, 0.6));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(246, 248, 252, 0.82));
   position: sticky;
   top: 0;
   z-index: 20;
@@ -143,9 +153,9 @@ button {
   border-radius: 11px;
   display: grid;
   place-items: center;
-  background: linear-gradient(150deg, var(--accent), #ff9d3d);
-  box-shadow: 0 6px 18px rgba(255, 160, 61, 0.35);
-  color: #241500;
+  background: linear-gradient(150deg, #f59e0b, #f97316);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.28);
+  color: #ffffff;
   font-size: 20px;
 }
 
@@ -195,7 +205,7 @@ button {
 .progress-track {
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--tint-strong);
   overflow: hidden;
 }
 
@@ -212,7 +222,7 @@ button {
   padding: 4px;
   gap: 4px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tint);
   border: 1px solid var(--panel-border);
 }
 
@@ -231,14 +241,14 @@ button {
 }
 
 .toggle button.active {
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+  background: #ffffff;
   color: var(--text-0);
   box-shadow: var(--shadow-sm);
 }
 
 .btn-ghost {
   border: 1px solid var(--panel-border-strong);
-  background: rgba(255, 255, 255, 0.03);
+  background: #ffffff;
   color: var(--text-1);
   padding: 9px 14px;
   border-radius: 10px;
@@ -282,7 +292,7 @@ button {
   margin-bottom: 8px;
   border-radius: 12px;
   border: 1px solid var(--panel-border);
-  background: linear-gradient(180deg, rgba(31, 45, 79, 0.65), rgba(24, 35, 63, 0.55));
+  background: #ffffff;
   color: var(--text-0);
   cursor: grab;
   transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
@@ -304,7 +314,7 @@ button {
 
 .chip.selected {
   border-color: var(--accent);
-  background: linear-gradient(180deg, rgba(255, 194, 61, 0.16), rgba(24, 35, 63, 0.55));
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.10), #ffffff);
   box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-sm);
 }
 
@@ -313,7 +323,7 @@ button {
   margin-left: auto;
   font-size: 10px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   white-space: nowrap;
 }
 
@@ -378,7 +388,7 @@ button {
 
 .board.mode-schematic {
   background:
-    linear-gradient(rgba(120, 150, 210, 0.05) 1px, transparent 1px) 0 0 / 100% 26px,
+    linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px) 0 0 / 100% 26px,
     var(--panel);
 }
 
@@ -423,7 +433,7 @@ button {
   min-height: 132px;
   border-radius: 14px;
   border: 1.5px solid var(--panel-border);
-  background: linear-gradient(180deg, rgba(18, 26, 48, 0.6), rgba(12, 18, 34, 0.4));
+  background: #ffffff;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -450,13 +460,13 @@ button {
 }
 
 .slot.status-ok {
-  border-color: rgba(69, 214, 154, 0.6);
-  background: linear-gradient(180deg, var(--ok-soft), rgba(12, 18, 34, 0.4));
+  border-color: rgba(5, 150, 105, 0.55);
+  background: linear-gradient(180deg, var(--ok-soft), #ffffff);
 }
 
 .slot.status-err {
-  border-color: rgba(255, 107, 107, 0.6);
-  background: linear-gradient(180deg, var(--err-soft), rgba(12, 18, 34, 0.4));
+  border-color: rgba(220, 38, 38, 0.5);
+  background: linear-gradient(180deg, var(--err-soft), #ffffff);
 }
 
 .slot.locked {
@@ -464,10 +474,10 @@ button {
   border-color: var(--panel-border-strong);
   background: repeating-linear-gradient(
     45deg,
-    rgba(255, 255, 255, 0.02),
-    rgba(255, 255, 255, 0.02) 8px,
-    rgba(255, 255, 255, 0.045) 8px,
-    rgba(255, 255, 255, 0.045) 16px
+    rgba(15, 23, 42, 0.025),
+    rgba(15, 23, 42, 0.025) 8px,
+    rgba(15, 23, 42, 0.055) 8px,
+    rgba(15, 23, 42, 0.055) 16px
   );
 }
 
@@ -480,7 +490,7 @@ button {
 .slot-bmk {
   font-family: var(--mono);
   font-size: 11px;
-  color: var(--accent);
+  color: var(--accent-text);
   letter-spacing: 0.02em;
 }
 
@@ -541,12 +551,12 @@ button {
 
 .slot-badge.ok {
   background: var(--ok);
-  color: #06251a;
+  color: #ffffff;
 }
 
 .slot-badge.err {
   background: var(--err);
-  color: #2a0808;
+  color: #ffffff;
 }
 
 .slot-badge.locked {
@@ -562,7 +572,7 @@ button {
 
 .icon-btn {
   border: 1px solid var(--panel-border);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tint-weak);
   color: var(--text-2);
   width: 26px;
   height: 26px;
@@ -657,7 +667,7 @@ button {
 .info .example {
   font-size: 12.5px;
   color: var(--text-2);
-  background: rgba(98, 182, 255, 0.08);
+  background: rgba(37, 99, 235, 0.07);
   border-left: 3px solid var(--info);
   padding: 9px 11px;
   border-radius: 0 8px 8px 0;
@@ -685,20 +695,20 @@ button {
 }
 
 .hint-lvl1 {
-  background: rgba(255, 180, 84, 0.08);
-  border-color: rgba(255, 180, 84, 0.25);
+  background: rgba(217, 119, 6, 0.07);
+  border-color: rgba(217, 119, 6, 0.22);
   color: var(--text-1);
 }
 
 .hint-lvl2 {
-  background: rgba(255, 180, 84, 0.14);
-  border-color: rgba(255, 180, 84, 0.4);
+  background: rgba(217, 119, 6, 0.13);
+  border-color: rgba(217, 119, 6, 0.42);
   color: var(--text-0);
 }
 
 .hint-lvl3 {
   background: var(--err-soft);
-  border-color: rgba(255, 107, 107, 0.45);
+  border-color: rgba(220, 38, 38, 0.42);
   color: var(--text-0);
 }
 
@@ -723,7 +733,7 @@ button {
 
 .hint b {
   font-family: var(--mono);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 11.5px;
 }
 
@@ -737,7 +747,7 @@ button {
 }
 
 .hint-lvl3 .hint-stage {
-  color: var(--err);
+  color: var(--err-text);
 }
 
 .hints-legend {
@@ -753,7 +763,7 @@ button {
   display: flex;
   gap: 10px;
   align-items: center;
-  color: var(--ok);
+  color: var(--ok-text);
   font-size: 13px;
 }
 
@@ -767,7 +777,7 @@ button {
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--tint-strong);
 }
 
 .hint-step.on {
@@ -782,7 +792,7 @@ button {
   z-index: 50;
   display: grid;
   place-items: center;
-  background: rgba(6, 10, 22, 0.72);
+  background: rgba(15, 23, 42, 0.34);
   backdrop-filter: blur(6px);
   animation: fade 0.3s ease;
 }
@@ -796,8 +806,8 @@ button {
   padding: 30px;
   text-align: center;
   border-radius: 22px;
-  border: 1px solid var(--panel-border-strong);
-  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  border: 1px solid var(--panel-border);
+  background: #ffffff;
   box-shadow: var(--shadow);
 }
 
@@ -823,9 +833,9 @@ button {
   border-radius: 12px;
   font-size: 14px;
   font-weight: 700;
-  color: #241500;
-  background: linear-gradient(150deg, var(--accent), #ff9d3d);
-  box-shadow: 0 8px 22px rgba(255, 160, 61, 0.35);
+  color: #ffffff;
+  background: linear-gradient(150deg, #f59e0b, #f97316);
+  box-shadow: 0 8px 20px rgba(249, 115, 22, 0.30);
   transition: transform 0.15s ease;
 }
 
@@ -899,8 +909,9 @@ button {
   padding: 22px;
   border-radius: 18px;
   border: 1px solid var(--panel-border);
-  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  background: #ffffff;
   color: var(--text-0);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
@@ -912,9 +923,11 @@ button {
 }
 
 .ls-card.locked {
-  opacity: 0.55;
+  opacity: 0.68;
   cursor: not-allowed;
   filter: grayscale(0.4);
+  background: var(--bg-1);
+  box-shadow: none;
 }
 
 .ls-card.done {
@@ -938,7 +951,7 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-2);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tint);
   padding: 4px 9px;
   border-radius: 999px;
 }
@@ -947,7 +960,7 @@ button {
   margin-left: auto;
   font-size: 11px;
   font-weight: 700;
-  color: var(--ok);
+  color: var(--ok-text);
 }
 
 .ls-card h2 {
@@ -958,7 +971,7 @@ button {
 .ls-concept {
   margin: 0 0 8px;
   font-size: 13px;
-  color: var(--accent);
+  color: var(--accent-text);
   line-height: 1.5;
 }
 
@@ -1016,8 +1029,8 @@ button {
   border-radius: 10px;
   font-size: 12.5px;
   color: var(--text-2);
-  background: rgba(255, 180, 84, 0.08);
-  border: 1px dashed rgba(255, 180, 84, 0.3);
+  background: var(--warn-soft);
+  border: 1px dashed rgba(217, 119, 6, 0.32);
 }
 
 .lm-grid {
@@ -1030,17 +1043,17 @@ button {
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 13px;
-  background: rgba(12, 18, 34, 0.4);
+  background: #ffffff;
   transition: border-color 0.2s ease;
 }
 
 .lm-card.ok {
-  border-color: rgba(69, 214, 154, 0.55);
+  border-color: rgba(5, 150, 105, 0.5);
   background: var(--ok-soft);
 }
 
 .lm-card.err {
-  border-color: rgba(255, 107, 107, 0.5);
+  border-color: rgba(220, 38, 38, 0.45);
   background: var(--err-soft);
 }
 
@@ -1071,7 +1084,7 @@ button {
   padding: 8px 6px;
   border-radius: 9px;
   border: 1px solid var(--panel-border);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--tint-weak);
   color: var(--text-1);
   font-size: 12px;
   font-weight: 600;
@@ -1109,8 +1122,8 @@ button {
   line-height: 1.5;
 }
 
-.lm-feedback.ok { color: var(--ok); }
-.lm-feedback.err { color: var(--warn); }
+.lm-feedback.ok { color: var(--ok-text); }
+.lm-feedback.err { color: var(--warn-text); }
 
 /* ---------- Footer ---------------------------------------------------------- */
 

@@ -14,20 +14,24 @@ interface Props {
   size?: number;
 }
 
+// Auf hellem Hintergrund abgestimmte, satte Symbolfarben.
 const COLORS: Record<ComponentKind, string> = {
-  SLS: '#ff9d3d',
-  METER: '#62b6ff',
-  ENERGY_METER: '#62b6ff',
-  USS: '#c58cff',
-  LS: '#ffc23d',
-  RCD: '#45d69a',
-  CONTACTOR: '#5ad1e6',
-  KAMMSCHIENE: '#8fb4ff',
-  LOAD: '#8fb4ff',
+  SLS: '#ea580c',
+  METER: '#2563eb',
+  ENERGY_METER: '#2563eb',
+  USS: '#7c3aed',
+  LS: '#d97706',
+  RCD: '#059669',
+  CONTACTOR: '#0891b2',
+  KAMMSCHIENE: '#3b82f6',
+  LOAD: '#3b82f6',
 };
 
+/** Strichfarbe der Fachansicht (technische Schaltzeichen). */
+const SCHEMATIC_STROKE = '#334155';
+
 export function ComponentSymbol({ kind, item, view, size = 30 }: Props) {
-  const stroke = view === 'schematic' ? '#cdd8f5' : COLORS[kind];
+  const stroke = view === 'schematic' ? SCHEMATIC_STROKE : COLORS[kind];
   const s = size;
   const common = {
     width: s,
@@ -100,9 +104,9 @@ function gameGlyph(kind: ComponentKind, rcdType: RcdType | undefined, color: str
       return (
         <>
           <rect x="14" y="6" width="12" height="28" rx="4" fill={color} opacity="0.2" />
-          <circle cx="20" cy="12" r="3" fill="#45d69a" stroke="none" />
-          <circle cx="20" cy="20" r="3" fill="#ffc23d" stroke="none" />
-          <circle cx="20" cy="28" r="3" fill="#ff6b6b" stroke="none" />
+          <circle cx="20" cy="12" r="3" fill="#059669" stroke="none" />
+          <circle cx="20" cy="20" r="3" fill="#d97706" stroke="none" />
+          <circle cx="20" cy="28" r="3" fill="#dc2626" stroke="none" />
         </>
       );
     case 'KAMMSCHIENE':
@@ -156,8 +160,8 @@ function schematicGlyph(kind: ComponentKind, rcdType: RcdType | undefined) {
         <>
           <rect x="10" y="8" width="20" height="24" rx="1" />
           <path d="M14 26c2-6 10-6 12 0" />
-          <circle cx="20" cy="15" r="1.6" fill="#cdd8f5" stroke="none" />
-          <text x="20" y="15" dy="10" fontSize="7" fill="#cdd8f5" stroke="none" textAnchor="middle">
+          <circle cx="20" cy="15" r="1.6" fill={SCHEMATIC_STROKE} stroke="none" />
+          <text x="20" y="15" dy="10" fontSize="7" fill={SCHEMATIC_STROKE} stroke="none" textAnchor="middle">
             {rcdType ? `Typ ${rcdType}` : 'FI'}
           </text>
         </>
