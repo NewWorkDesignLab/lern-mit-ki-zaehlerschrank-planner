@@ -10,10 +10,13 @@
 // ---------------------------------------------------------------------------
 
 import type { LevelDefinition } from '../domain/types';
+import { ZS_PV_ART } from './zs-pv.art';
 
 export const ZS_PV_LEVEL: LevelDefinition = {
   id: 'zs-pv',
   order: 1,
+  // Spielansicht dieses Levels: fotorealistischer Schrank statt Kartenraster.
+  cabinet: ZS_PV_ART,
   icon: '☀️',
   title: 'Zählerschrank PV',
   subtitle: 'Prosumer-Anschluss: PV-Erzeuger, Wallbox & Endstromkreise',
