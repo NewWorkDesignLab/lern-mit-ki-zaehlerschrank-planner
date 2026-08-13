@@ -8,9 +8,19 @@ interface Props {
   onView: (v: ViewMode) => void;
   onReset: () => void;
   onExit: () => void;
+  /** Auftrag erneut einblenden, nachdem der Toast weg ist. */
+  onShowNarrative: () => void;
 }
 
-export function Toolbar({ level, view, progress, onView, onReset, onExit }: Props) {
+export function Toolbar({
+  level,
+  view,
+  progress,
+  onView,
+  onReset,
+  onExit,
+  onShowNarrative,
+}: Props) {
   const pct = Math.round(progress * 100);
   return (
     <header className="toolbar">
@@ -57,6 +67,10 @@ export function Toolbar({ level, view, progress, onView, onReset, onExit }: Prop
           📐 Fachansicht
         </button>
       </div>
+
+      <button className="btn-ghost" onClick={onShowNarrative} title="Auftrag erneut anzeigen">
+        🏘️ Auftrag
+      </button>
 
       <button className="btn-ghost" onClick={onReset}>
         Zurücksetzen

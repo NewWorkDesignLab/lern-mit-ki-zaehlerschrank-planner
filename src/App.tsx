@@ -6,6 +6,7 @@ import { InfoPanel } from './components/InfoPanel';
 import { HintPanel } from './components/HintPanel';
 import { CompletionScreen } from './components/CompletionScreen';
 import { SolvedBar } from './components/SolvedBar';
+import { NarrativeToast } from './components/NarrativeToast';
 import { LevelSelect } from './components/LevelSelect';
 import { LoadManagementAmpel } from './components/LoadManagementAmpel';
 import { buildHints } from './domain/hints';
@@ -76,6 +77,8 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
   // Abschluss-Overlay weggeklickt? Dann bleibt das Level offen und der Weg
   // weiter läuft über die SolvedBar.
   const [summaryDismissed, setSummaryDismissed] = useState(false);
+  // Hochzählen montiert den Auftrags-Toast neu – so lässt er sich erneut zeigen.
+  const [narrativeSeq, setNarrativeSeq] = useState(0);
 
   const selectPaletteItem = (id: string, info: string) => {
     setSelectedItemId((prev) => (prev === id ? null : id));
@@ -136,6 +139,7 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
         progress={validation.progress}
         onView={setView}
         onExit={onExit}
+        onShowNarrative={() => setNarrativeSeq((n) => n + 1)}
         onReset={() => {
           dispatch({ type: 'RESET' });
           setInfoKey(null);
@@ -163,12 +167,7 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
             />
           )}
 
-          <div className="panel narrative">
-            <span className="narrative-badge">🏘️</span>
-            <p>
-              <b>Auftrag:</b> {level.narrative}
-            </p>
-          </div>
+          <NarrativeToast key={narrativeSeq} text={level.narrative} />
 
           <Board
             level={level}
