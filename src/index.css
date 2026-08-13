@@ -382,6 +382,44 @@ button {
   color: var(--text-0);
 }
 
+/* Erfolgs-Leiste: bleibt stehen, wenn das Abschluss-Overlay weggeklickt wurde.
+   Klebt beim Scrollen mit, damit der Weg weiter am hohen Schrank nicht
+   verloren geht. */
+.solved-bar {
+  position: sticky;
+  top: 80px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--ok);
+  background: linear-gradient(180deg, var(--ok-soft), rgba(255, 255, 255, 0.94));
+}
+
+.solved-badge {
+  font-size: 22px;
+}
+
+.solved-bar p {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+
+.solved-bar b {
+  color: var(--ok-text);
+}
+
+.solved-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
 .board {
   padding: 18px;
 }
@@ -802,6 +840,7 @@ button {
 }
 
 .overlay-card {
+  position: relative;
   width: min(460px, 92vw);
   padding: 30px;
   text-align: center;
@@ -809,6 +848,31 @@ button {
   border: 1px solid var(--panel-border);
   background: #ffffff;
   box-shadow: var(--shadow);
+}
+
+/* Wegklicken, um den fertigen Schrank anzuschauen. */
+.overlay-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: #ffffff;
+  color: var(--text-2);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.16s ease;
+}
+
+.overlay-close:hover {
+  border-color: var(--accent);
+  color: var(--text-0);
+  background: var(--tint);
 }
 
 .overlay-card .medal {

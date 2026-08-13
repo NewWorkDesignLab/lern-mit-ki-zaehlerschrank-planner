@@ -5,6 +5,7 @@ import { Board } from './components/Board';
 import { InfoPanel } from './components/InfoPanel';
 import { HintPanel } from './components/HintPanel';
 import { CompletionScreen } from './components/CompletionScreen';
+import { SolvedBar } from './components/SolvedBar';
 import { LevelSelect } from './components/LevelSelect';
 import { LoadManagementAmpel } from './components/LoadManagementAmpel';
 import { buildHints } from './domain/hints';
@@ -72,6 +73,9 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
   const [infoKey, setInfoKey] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [ampelSolved, setAmpelSolved] = useState(false);
+  // Abschluss-Overlay weggeklickt? Dann bleibt das Level offen und der Weg
+  // weiter läuft über die SolvedBar.
+  const [summaryDismissed, setSummaryDismissed] = useState(false);
 
   const selectPaletteItem = (id: string, info: string) => {
     setSelectedItemId((prev) => (prev === id ? null : id));
@@ -136,6 +140,7 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
           dispatch({ type: 'RESET' });
           setInfoKey(null);
           setSelectedItemId(null);
+          setSummaryDismissed(false);
           reported.current = false;
         }}
       />
@@ -149,6 +154,15 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
         />
 
         <div className="board-wrap">
+          {solved && summaryDismissed && (
+            <SolvedBar
+              onNext={hasNext ? onNext : undefined}
+              nextLabel="Nächstes Level"
+              onShowSummary={() => setSummaryDismissed(false)}
+              onExit={onExit}
+            />
+          )}
+
           <div className="panel narrative">
             <span className="narrative-badge">🏘️</span>
             <p>
@@ -188,7 +202,7 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
         einem gemeinsamen Datenmodell
       </footer>
 
-      {solved && (
+      {solved && !summaryDismissed && (
         <CompletionScreen
           title={
             level.id === 'zs-wp'
@@ -201,8 +215,10 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
             setInfoKey(null);
             setSelectedItemId(null);
             setAmpelSolved(false);
+            setSummaryDismissed(false);
             reported.current = false;
           }}
+          onDismiss={() => setSummaryDismissed(true)}
           onExit={onExit}
           onNext={hasNext ? onNext : undefined}
           nextLabel="Nächstes Level"
