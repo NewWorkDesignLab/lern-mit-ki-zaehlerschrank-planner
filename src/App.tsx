@@ -7,6 +7,7 @@ import { HintPanel } from './components/HintPanel';
 import { CompletionScreen } from './components/CompletionScreen';
 import { SolvedBar } from './components/SolvedBar';
 import { NarrativeToast } from './components/NarrativeToast';
+import { ScrollCue } from './components/ScrollCue';
 import { LevelSelect } from './components/LevelSelect';
 import { LoadManagementAmpel } from './components/LoadManagementAmpel';
 import { buildHints } from './domain/hints';
@@ -79,6 +80,8 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
   const [summaryDismissed, setSummaryDismissed] = useState(false);
   // Hochzählen montiert den Auftrags-Toast neu – so lässt er sich erneut zeigen.
   const [narrativeSeq, setNarrativeSeq] = useState(0);
+  // Ziel für den Scroll-Hinweis auf die zweite Aufgabe (Lastmanagement).
+  const ampelRef = useRef<HTMLDivElement>(null);
 
   const selectPaletteItem = (id: string, info: string) => {
     setSelectedItemId((prev) => (prev === id ? null : id));
@@ -182,11 +185,13 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
           />
 
           {level.loadManagement && (
-            <LoadManagementAmpel
-              data={level.loadManagement}
-              enabled={wiringSolved}
-              onSolvedChange={setAmpelSolved}
-            />
+            <div ref={ampelRef}>
+              <LoadManagementAmpel
+                data={level.loadManagement}
+                enabled={wiringSolved}
+                onSolvedChange={setAmpelSolved}
+              />
+            </div>
           )}
         </div>
 
@@ -200,6 +205,12 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
         Prototyp · fachlich korrekt nach Vorlage EBZ Dresden · Spiel-/Fachansicht aus
         einem gemeinsamen Datenmodell
       </footer>
+
+      {level.loadManagement && (
+        <ScrollCue targetRef={ampelRef} active={wiringSolved && !ampelSolved}>
+          Schrank steht – jetzt noch das Lastmanagement einstellen
+        </ScrollCue>
+      )}
 
       {solved && !summaryDismissed && (
         <CompletionScreen

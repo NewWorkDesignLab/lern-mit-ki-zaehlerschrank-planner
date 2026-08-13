@@ -5,7 +5,7 @@
 // Lernaspekt gegenüber dem passiven Schutz aus Level 1.
 // ---------------------------------------------------------------------------
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AmpelState, LoadManagement } from '../domain/types';
 
 const OPTIONS: { state: AmpelState; label: string; cls: string }[] = [
@@ -32,8 +32,23 @@ export function LoadManagementAmpel({ data, enabled, onSolvedChange }: Props) {
     onSolvedChange(allCorrect);
   }, [allCorrect, onSolvedChange]);
 
+  // Moment des Freischaltens hervorheben: der Wechsel gesperrt -> scharf soll
+  // sichtbar sein, auch wenn man erst danach herunterscrollt.
+  const [justUnlocked, setJustUnlocked] = useState(false);
+  const wasEnabled = useRef(enabled);
+  useEffect(() => {
+    const unlockedNow = enabled && !wasEnabled.current;
+    wasEnabled.current = enabled;
+    if (!unlockedNow) return;
+    setJustUnlocked(true);
+    const timer = setTimeout(() => setJustUnlocked(false), 2600);
+    return () => clearTimeout(timer);
+  }, [enabled]);
+
   return (
-    <section className={`panel lm ${enabled ? '' : 'lm-disabled'}`}>
+    <section
+      className={`panel lm ${enabled ? '' : 'lm-disabled'} ${justUnlocked ? 'lm-unlocking' : ''}`}
+    >
       <div className="lm-head">
         <span className="lm-badge">🚦</span>
         <div>
@@ -46,6 +61,13 @@ export function LoadManagementAmpel({ data, enabled, onSolvedChange }: Props) {
         <p className="lm-lock">
           🔒 Erst den Schrank fachgerecht verdrahten (inkl. SG-Ready-Schütz) – dann wird
           die Ampel scharf.
+        </p>
+      )}
+
+      {enabled && !allCorrect && (
+        <p className="lm-live">
+          🔓 Der Schrank steht – die Ampel ist scharf. Jetzt entscheidest du je Situation,
+          ob die Wärmepumpe laufen darf.
         </p>
       )}
 
