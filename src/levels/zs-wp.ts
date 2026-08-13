@@ -13,10 +13,13 @@
 // ---------------------------------------------------------------------------
 
 import type { LevelDefinition } from '../domain/types';
+import { ZS_WP_ART } from './zs-wp.art';
 
 export const ZS_WP_LEVEL: LevelDefinition = {
   id: 'zs-wp',
   order: 2,
+  // Spielansicht dieses Levels: fotorealistischer Schrank statt Kartenraster.
+  cabinet: ZS_WP_ART,
   icon: '🔥',
   title: 'Zählerschrank Wärmepumpe',
   subtitle: 'Wärmepumpe smart einbinden: Schutz + aktives Lastmanagement',

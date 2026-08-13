@@ -6,6 +6,10 @@
 import { useState } from 'react';
 import type { LevelDefinition, PaletteItem, ViewMode } from '../domain/types';
 import { ComponentSymbol } from './ComponentSymbol';
+import { PartImage } from './PartImage';
+
+/** Seitenverhältnis von .chip-sym.photo – begrenzt breite Geräte im Chip. */
+const CHIP_ASPECT = 52 / 44;
 
 interface Props {
   level: LevelDefinition;
@@ -56,9 +60,7 @@ export function Palette({ level, view, selectedItemId, onSelect }: Props) {
               onClick={() => onSelect(item.id, item.infoKey)}
               title="Klick zum Auswählen, dann Steckplatz anklicken · oder ziehen"
             >
-              <span className="chip-sym">
-                <ComponentSymbol kind={item.kind} item={item} view={view} size={28} />
-              </span>
+              <ChipSymbol level={level} view={view} item={item} />
               <span className="chip-body">
                 <b>{item.label}</b>
                 <span>{chipSubtitle(item)}</span>
@@ -73,6 +75,34 @@ export function Palette({ level, view, selectedItemId, onSelect }: Props) {
         daher nicht wählbar.
       </p>
     </aside>
+  );
+}
+
+/**
+ * Symbol im Chip: in der Spielansicht das echte Bauteilfoto – dasselbe Bild,
+ * das später im Schrank steckt. Die Fachansicht bleibt beim Schaltzeichen.
+ */
+function ChipSymbol({
+  level,
+  view,
+  item,
+}: {
+  level: LevelDefinition;
+  view: ViewMode;
+  item: PaletteItem;
+}) {
+  const art = view === 'game' ? level.cabinet?.parts[item.id] : undefined;
+  if (!art) {
+    return (
+      <span className="chip-sym">
+        <ComponentSymbol kind={item.kind} item={item} view={view} size={28} />
+      </span>
+    );
+  }
+  return (
+    <span className="chip-sym photo">
+      <PartImage art={art} label={item.label} fill={0.92} boxAspect={CHIP_ASPECT} />
+    </span>
   );
 }
 

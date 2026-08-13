@@ -8,6 +8,7 @@ import { useState } from 'react';
 import type { LevelDefinition, PaletteItem, Placement, Slot, ViewMode } from '../domain/types';
 import type { Violation } from '../domain/rules';
 import { ComponentSymbol } from './ComponentSymbol';
+import { Cabinet } from './Cabinet';
 
 interface BoardProps {
   level: LevelDefinition;
@@ -33,6 +34,24 @@ export function Board({
   onSlotClick,
   onInfo,
 }: BoardProps) {
+  // Level mit hinterlegter Schrankgrafik werden in der Spielansicht
+  // fotorealistisch gezeichnet. Die Fachansicht bleibt immer das Kartenraster.
+  if (view === 'game' && level.cabinet) {
+    return (
+      <Cabinet
+        level={level}
+        art={level.cabinet}
+        placement={placement}
+        violationBySlot={violationBySlot}
+        selecting={selecting}
+        onPlace={onPlace}
+        onClear={onClear}
+        onSlotClick={onSlotClick}
+        onInfo={onInfo}
+      />
+    );
+  }
+
   return (
     <section className={`panel board mode-${view}`}>
       {level.branches.map((branch) => (

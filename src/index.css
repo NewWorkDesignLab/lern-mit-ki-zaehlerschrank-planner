@@ -1125,6 +1125,161 @@ button {
 .lm-feedback.ok { color: var(--ok-text); }
 .lm-feedback.err { color: var(--warn-text); }
 
+/* ---------- Fotorealistischer Schrank (Spielansicht, Cabinet.tsx) ----------- */
+
+.board-cabinet {
+  padding: 16px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Rahmen der Schrankgrafik. Das Seitenverhältnis kommt als --cab-aspect aus
+   den Leveldaten, damit weitere Schränke ohne CSS-Änderung funktionieren. */
+.cabinet {
+  position: relative;
+  margin: 0 auto;
+  aspect-ratio: var(--cab-aspect);
+  width: min(100%, calc(78vh * var(--cab-aspect)));
+}
+
+.cabinet-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Ein Steckplatz liegt exakt auf dem gestrichelten Platzhalter der Grafik.
+   Bauteile dürfen seitlich überstehen – ein 4-poliger RCD ist nun mal breiter
+   als das Kästchen, genau wie in echt. */
+.cabinet-slot {
+  position: absolute;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.cabinet-slot.targetable {
+  cursor: copy;
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.cabinet-slot.dropactive {
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent);
+  animation: none;
+}
+
+.cabinet-slot.status-ok {
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.75);
+  animation: none;
+}
+
+.cabinet-slot.status-err {
+  box-shadow: 0 0 0 2px var(--err);
+  animation: pulse 0.9s ease-in-out infinite;
+}
+
+/* Status-Marke oben rechts am Steckplatz. */
+.cabinet-mark {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+  z-index: 2;
+}
+
+.cabinet-mark.ok { background: var(--ok); }
+.cabinet-mark.err { background: var(--err); }
+
+.cabinet-slot-actions {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 3;
+}
+
+.cabinet-slot:hover .cabinet-slot-actions {
+  opacity: 1;
+}
+
+.cabinet-btn {
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border-strong);
+  background: #ffffff;
+  color: var(--text-1);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.cabinet-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Klartext-Leiste: ersetzt die Beschreibungen der Kartenansicht. */
+.cabinet-caption {
+  margin: 0;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--tint);
+  border: 1px solid var(--panel-border);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.cabinet-caption b {
+  color: var(--accent-text);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.cabinet-caption-title {
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.cabinet-caption-desc {
+  flex: 1 1 240px;
+}
+
+/* Paletten-Chip mit echtem Bauteilfoto statt Schaltzeichen. */
+.chip-sym.photo {
+  position: relative;
+  width: 52px;
+  height: 44px;
+}
+
 /* ---------- Footer ---------------------------------------------------------- */
 
 .app-footer {

@@ -125,6 +125,44 @@ export interface LoadManagement {
   situations: AmpelSituation[];
 }
 
+// ---------------------------------------------------------------------------
+// Optionale fotorealistische Darstellung (Spielansicht).
+// Ein Level MIT `cabinet` wird als Schrankgrafik gerendert, eines OHNE weiterhin
+// als Kartenraster. Die Fachansicht bleibt davon in jedem Fall unberührt.
+// ---------------------------------------------------------------------------
+
+/** Normalisiertes Rechteck (0..1) – relativ zur jeweiligen Grafik. */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Bauteilfoto samt freigestelltem Inhaltsbereich. Die PNGs haben unterschiedlich
+ * viel transparenten Rand; `content` beschreibt, wo das Gerät wirklich sitzt,
+ * damit alle Geräte auf dieselbe Bauhöhe skaliert werden können.
+ */
+export interface PartArt {
+  src: string;
+  content: Rect;
+  /** Seitenverhältnis des Geräts selbst (Breite / Höhe des Inhalts). */
+  aspect: number;
+}
+
+/** Grafische Darstellung eines Levels als bestückbarer Schrank. */
+export interface CabinetArt {
+  /** Hintergrundgrafik des Schranks (mit gezeichneten Platzhaltern). */
+  background: string;
+  /** Seitenverhältnis der Hintergrundgrafik (Breite / Höhe). */
+  aspect: number;
+  /** slot.id -> Platzhalter-Rechteck in der Hintergrundgrafik. */
+  slotRects: Record<string, Rect>;
+  /** paletteItem.id -> Foto. Nicht gelistete Bauteile werden nicht gezeichnet. */
+  parts: Record<string, PartArt>;
+}
+
 /** Eine vollständige Level-Definition, rein datengetrieben. */
 export interface LevelDefinition {
   id: string;
@@ -142,6 +180,8 @@ export interface LevelDefinition {
   palette: PaletteItem[];
   /** Optional: aktives Lastmanagement (nur für Level mit „Ampel"-Mechanik). */
   loadManagement?: LoadManagement;
+  /** Optional: fotorealistische Schrankgrafik für die Spielansicht. */
+  cabinet?: CabinetArt;
 }
 
 /** Ansichtsmodus für den Dual-View-Toggle. */

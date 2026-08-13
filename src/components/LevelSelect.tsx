@@ -1,6 +1,7 @@
 // ---------------------------------------------------------------------------
 // Level-Auswahl mit Progression/Freischaltung.
-// Level 1 ist immer offen; Level 2 wird nach Abschluss von Level 1 freigeschaltet.
+// Ob ein Level offen ist, entscheidet allein isUnlocked() in levels/registry.ts
+// (dort steckt auch der Prototyp-Schalter, der aktuell alle Level freigibt).
 // ---------------------------------------------------------------------------
 
 import type { LevelDefinition } from '../domain/types';

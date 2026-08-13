@@ -17,10 +17,19 @@ export const LEVELS: Record<string, LevelDefinition> = Object.fromEntries(
 );
 
 /**
+ * Prototyp-Schalter: alle Level direkt anspielbar, ohne die Progression
+ * durchlaufen zu müssen. Praktisch, solange am Grafik-Beispiel in Level 2
+ * gearbeitet wird. Auf `false` setzen, um die reguläre Freischaltung unten
+ * wieder scharf zu stellen – die Logik dafür bleibt unverändert erhalten.
+ */
+const UNLOCK_ALL: boolean = true;
+
+/**
  * Ein Level ist freigeschaltet, wenn es das erste ist oder das vorherige
  * Level bereits abgeschlossen wurde.
  */
 export function isUnlocked(levelId: string, completed: ReadonlySet<string>): boolean {
+  if (UNLOCK_ALL) return true;
   const idx = LEVEL_LIST.findIndex((l) => l.id === levelId);
   if (idx <= 0) return true;
   return completed.has(LEVEL_LIST[idx - 1].id);
