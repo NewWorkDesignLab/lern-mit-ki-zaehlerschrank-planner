@@ -1282,19 +1282,21 @@ button {
   line-height: 1.45;
 }
 
+/* Untereinander statt nebeneinander: Die Labels ("Normalbetrieb") sprengen in
+   schmalen Karten sonst die Zeile – und senkrecht liest sich die Ampel ohnehin
+   wie eine echte: grün oben, rot unten. */
 .lm-options {
-  display: flex;
+  display: grid;
   gap: 6px;
   margin: 11px 0 4px;
 }
 
 .lm-opt {
-  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 6px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 9px;
   border: 1px solid var(--panel-border);
   background: var(--tint-weak);
@@ -1310,6 +1312,7 @@ button {
 }
 
 .lm-dot {
+  flex: 0 0 auto;
   width: 10px;
   height: 10px;
   border-radius: 999px;

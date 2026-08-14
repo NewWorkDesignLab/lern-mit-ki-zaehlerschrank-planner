@@ -108,16 +108,20 @@ export const INFOTEXTS: Record<string, InfoText> = {
   },
 
   'sg-ready': {
-    title: 'SG-Ready-Schütz – die „Ampel" der Wärmepumpe',
+    title: 'SG-Ready-Schütz – die „Ampel“ der Wärmepumpe',
     body:
-      'SG-Ready („Smart Grid Ready") ist eine Schnittstelle, über die das ' +
-      'Lastmanagement die Wärmepumpe aktiv steuert – anders als ein Schutzschalter, ' +
-      'der nur im Fehlerfall auslöst. Über ein Schütz (schaltbarer Leistungskontakt) ' +
-      'wird die WP freigegeben, normal betrieben oder gesperrt/gedrosselt. Eine feste ' +
-      'Verdrahtung ohne Schütz kann das Lastmanagement nicht steuern.',
+      'SG-Ready („Smart Grid Ready“) ist keine Software und kein Bedienfeld an der ' +
+      'Wärmepumpe, sondern eine Schnittstelle: zwei potentialfreie Schaltkontakte an ' +
+      'zwei Klemmen der WP. Das Schaltglied im Schrank legt diese Kontakte auf zu oder ' +
+      'auf – die Kombination beider Kontakte ist das Steuersignal. Entscheiden, was ' +
+      'daraus folgt (mehr heizen, normal weiterlaufen, Leistung zurücknehmen), tut der ' +
+      'Regler der Wärmepumpe selbst. Der Schrank gibt also die Anforderung vor, nicht ' +
+      'den Betrieb. Deshalb muss die WP schaltbar angebunden sein: fest verdrahtet ' +
+      'kommt das Lastmanagement gar nicht erst an diese Kontakte heran.',
     example:
-      'Hier: +ZS2-Q1. Bei PV-Überschuss → Freigabe (grün); in der Abendspitze oder bei ' +
-      'EVU-Sperrsignal → Sperre (rot), damit der Hausanschluss nicht überlastet wird.',
+      'Hier: +ZS2-Q1. Die Kette lautet immer: Netzsituation → Lastmanagement → ' +
+      'Schaltsignal → SG-Ready-Kontakte → WP-Regler → Betriebsverhalten. Die „Ampel“ ' +
+      'unten zeigt den mittleren Teil dieser Kette.',
   },
 
   'energy-meter': {
