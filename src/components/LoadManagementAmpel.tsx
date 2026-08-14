@@ -10,7 +10,7 @@ import type { AmpelState, LoadManagement } from '../domain/types';
 
 const OPTIONS: { state: AmpelState; label: string; cls: string }[] = [
   { state: 'FREIGABE', label: 'Freigabe', cls: 'gruen' },
-  { state: 'NORMAL', label: 'Normal', cls: 'gelb' },
+  { state: 'NORMAL', label: 'Normalbetrieb', cls: 'gelb' },
   { state: 'SPERRE', label: 'Sperre', cls: 'rot' },
 ];
 
@@ -59,8 +59,8 @@ export function LoadManagementAmpel({ data, enabled, onSolvedChange }: Props) {
 
       {!enabled && (
         <p className="lm-lock">
-          🔒 Erst den Schrank fachgerecht verdrahten (inkl. SG-Ready-Schütz) – dann wird
-          die Ampel scharf.
+          🔒 Baue und verdrahte den Schaltschrank zuerst fachgerecht. Danach kannst du
+          ausprobieren, wie die SG-Ready-Ampel auf verschiedene Netzsituationen reagiert.
         </p>
       )}
 

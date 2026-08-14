@@ -8,7 +8,14 @@ const STAGE: Record<number, { icon: string; label: string }> = {
   3: { icon: '📖', label: 'Infofeld geöffnet' },
 };
 
-export function HintPanel({ hints }: { hints: Hint[] }) {
+export function HintPanel({
+  hints,
+  loadManagementNext = false,
+}: {
+  hints: Hint[];
+  // Level mit Lastmanagement: Der fertige Schrank schaltet die Ampel frei.
+  loadManagementNext?: boolean;
+}) {
   const real = hints.filter((h) => h.code !== 'SLOT_EMPTY');
   const emptyCount = hints.length - real.length;
 
@@ -18,8 +25,20 @@ export function HintPanel({ hints }: { hints: Hint[] }) {
 
       {hints.length === 0 ? (
         <div className="hints-clean">
-          <span>✓</span>
-          <span>Alles fachlich korrekt – weiter so!</span>
+          {loadManagementNext ? (
+            <>
+              <span>🟢</span>
+              <span>
+                Schaltschrank vollständig aufgebaut. Jetzt kannst du das
+                SG-Ready-Lastmanagement ausprobieren.
+              </span>
+            </>
+          ) : (
+            <>
+              <span>✓</span>
+              <span>Alles fachlich korrekt – weiter so!</span>
+            </>
+          )}
         </div>
       ) : (
         <>

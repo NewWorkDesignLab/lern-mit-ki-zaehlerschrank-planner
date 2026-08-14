@@ -197,7 +197,10 @@ function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProp
 
         <aside className="sidebar">
           <InfoPanel infoKey={infoKey} />
-          <HintPanel hints={hints} />
+          <HintPanel
+            hints={hints}
+            loadManagementNext={Boolean(level.loadManagement) && wiringSolved}
+          />
         </aside>
       </main>
 
