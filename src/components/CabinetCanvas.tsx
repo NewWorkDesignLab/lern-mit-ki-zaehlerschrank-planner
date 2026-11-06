@@ -5,6 +5,7 @@
 // entfernt. Sichtbare Optik nur über Präsentationsattribute – siehe PartGraphic.
 // ---------------------------------------------------------------------------
 
+import { useLayoutEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { getPart } from '../catalog/parts';
 import type { CabinetGeo, ZoneGeo } from '../domain/geometry';
@@ -19,7 +20,6 @@ const FONT = "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 export interface Preview {
   part: CatalogPart;
   target: DropTarget;
-  movingUid?: string;
 }
 
 interface Props {
@@ -28,9 +28,15 @@ interface Props {
   geo: CabinetGeo;
   selectedUid: string | null;
   preview: Preview | null;
+  /** Bauteil, das gerade gezogen wird (wird halbtransparent gezeichnet). */
+  movingUid?: string;
   armed: boolean;
   onPartPointerDown: (uid: string, e: ReactPointerEvent) => void;
   onBackgroundClick: (clientX: number, clientY: number) => void;
+  /** Mausposition über dem Schrank (für die Vorschau beim Klick-Platzieren). */
+  onHover: (pos: { x: number; y: number } | null) => void;
+  onDuplicate: (uid: string) => void;
+  onRemove: (uid: string) => void;
 }
 
 export function CabinetCanvas({
@@ -39,10 +45,31 @@ export function CabinetCanvas({
   geo,
   selectedUid,
   preview,
+  movingUid,
   armed,
   onPartPointerDown,
   onBackgroundClick,
+  onHover,
+  onDuplicate,
+  onRemove,
 }: Props) {
+  // mm pro Bildschirmpixel – damit die Bedienknöpfe unabhängig vom Zoom gleich groß sind.
+  const [mmPerPx, setMmPerPx] = useState(1);
+  useLayoutEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const update = () => {
+      const ctm = svg.getScreenCTM();
+      if (ctm && ctm.a > 0) setMmPerPx(1 / ctm.a);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, [svgRef, geo]);
+
+  const selected = project.placements.find((p) => p.uid === selectedUid);
+
   return (
     <svg
       ref={svgRef}
@@ -50,6 +77,8 @@ export function CabinetCanvas({
       viewBox={`0 0 ${geo.width} ${geo.height}`}
       xmlns="http://www.w3.org/2000/svg"
       onClick={(e) => onBackgroundClick(e.clientX, e.clientY)}
+      onPointerMove={(e) => onHover({ x: e.clientX, y: e.clientY })}
+      onPointerLeave={() => onHover(null)}
     >
       <CabinetBody geo={geo} placements={project.placements} />
 
@@ -59,10 +88,14 @@ export function CabinetCanvas({
           placement={p}
           geo={geo}
           selected={p.uid === selectedUid}
-          ghost={preview?.movingUid === p.uid}
+          ghost={movingUid === p.uid}
           onPointerDown={onPartPointerDown}
         />
       ))}
+
+      {selected && !movingUid && (
+        <SelectionTools placement={selected} geo={geo} k={mmPerPx} onDuplicate={onDuplicate} onRemove={onRemove} />
+      )}
 
       {preview && <DropPreview preview={preview} geo={geo} />}
     </svg>
@@ -230,6 +263,85 @@ function PartShape({ part, box }: { part: CatalogPart; box: NonNullable<ReturnTy
   return <PartOnRail part={part} x={box.x} w={box.w} cy={box.z.railY} maxH={PHOTO_MAX_H} />;
 }
 
+function bmkLabelY(box: NonNullable<ReturnType<typeof partBox>>): number {
+  return box.kind === 'meter' ? box.z.y + box.z.h - 8 : box.z.y + box.z.h - 6;
+}
+
+/**
+ * Knöpfe am gewählten Bauteil: Duplizieren oberhalb, Entfernen (rot) unterhalb
+ * der Beschriftung – bewusst weit auseinander, damit man sich nicht verklickt.
+ * Größen in Bildschirmpixeln, umgerechnet mit k = mm/px.
+ */
+function SelectionTools({
+  placement,
+  geo,
+  k,
+  onDuplicate,
+  onRemove,
+}: {
+  placement: Placement;
+  geo: CabinetGeo;
+  k: number;
+  onDuplicate: (uid: string) => void;
+  onRemove: (uid: string) => void;
+}) {
+  const part = getPart(placement.partId);
+  if (!part) return null;
+  const box = partBox(geo, part, placement.field, placement.zone, placement.te);
+  if (!box) return null;
+
+  const r = 12 * k;
+  const cx = box.x + box.w / 2;
+  const dupY = box.y - 16 * k;
+  const delY = Math.max(box.y + box.h, bmkLabelY(box)) + 18 * k;
+
+  const button = (cy: number, title: string, fill: string, onPress: () => void, icon: JSX.Element) => (
+    <g
+      className="sel-tool"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onPress();
+      }}
+    >
+      <title>{title}</title>
+      <circle cx={cx} cy={cy} r={r} fill={fill} stroke="#ffffff" strokeWidth={2 * k} />
+      <g
+        transform={`translate(${cx} ${cy}) scale(${k})`}
+        stroke="#ffffff"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      >
+        {icon}
+      </g>
+    </g>
+  );
+
+  return (
+    <g data-noexport="">
+      {button(
+        dupY,
+        'Duplizieren',
+        '#d97706',
+        () => onDuplicate(placement.uid),
+        <>
+          <rect x={-5.5} y={-2.5} width={8} height={8} rx={1.5} />
+          <path d="M -2.5 -2.5 V -5.5 H 5.5 V 2.5 H 2.5" />
+        </>,
+      )}
+      {button(
+        delY,
+        'Entfernen',
+        '#dc2626',
+        () => onRemove(placement.uid),
+        <path d="M -4.5 -4.5 L 4.5 4.5 M 4.5 -4.5 L -4.5 4.5" />,
+      )}
+    </g>
+  );
+}
+
 function PlacedPart({
   placement,
   geo,
@@ -248,7 +360,7 @@ function PlacedPart({
   const box = partBox(geo, part, placement.field, placement.zone, placement.te);
   if (!box) return null;
 
-  const labelY = box.kind === 'meter' ? box.z.y + box.z.h - 8 : box.z.y + box.z.h - 6;
+  const labelY = bmkLabelY(box);
 
   return (
     <g

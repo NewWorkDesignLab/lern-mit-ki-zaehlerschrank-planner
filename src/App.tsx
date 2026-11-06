@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { getPart } from './catalog/parts';
 import { TEMPLATES, getTemplate } from './catalog/templates';
@@ -39,11 +39,21 @@ export function App() {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [armedPartId, setArmedPartId] = useState<string | null>(null);
   const [pointer, setPointer] = useState<Pointer | null>(null);
+  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [exporting, setExporting] = useState(false);
   /** Unterdrückt den Klick, der nach einem Ziehen ausgelöst wird. */
   const suppressClick = useRef(false);
+  /** Rote Löschflächen links und rechts neben dem Schrank. */
+  const trashLeft = useRef<HTMLDivElement>(null);
+  const trashRight = useRef<HTMLDivElement>(null);
+  const overTrash = useCallback((x: number, y: number) => {
+    return [trashLeft.current, trashRight.current].some((el) => {
+      const r = el?.getBoundingClientRect();
+      return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    });
+  }, []);
 
   const selected = project.placements.find((p) => p.uid === selectedUid) ?? null;
 
@@ -110,6 +120,12 @@ export function App() {
       if (!p.dragging) return;
       suppressClick.current = true;
       setTimeout(() => (suppressClick.current = false), 0);
+      if (p.uid && overTrash(e.clientX, e.clientY)) {
+        dispatch({ type: 'REMOVE', uid: p.uid });
+        setSelectedUid((s) => (s === p.uid ? null : s));
+        notify('Bauteil entfernt – Strg+Z holt es zurück.');
+        return;
+      }
       const hit = targetAt(p.partId, e.clientX, e.clientY, p.uid);
       if (!hit || !hit.target.valid) {
         if (hit) notify('Dort ist kein Platz für dieses Bauteil.');
@@ -133,13 +149,21 @@ export function App() {
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', cancel);
     };
-  }, [pointer, targetAt, dispatch, notify]);
+  }, [pointer, targetAt, dispatch, notify, overTrash]);
+
+  /** Ein platziertes Bauteil wird gerade gezogen (Löschflächen aktiv). */
+  const draggingPlaced = !!(pointer?.dragging && pointer.uid);
+  const trashHot = draggingPlaced && !!pointer && overTrash(pointer.x, pointer.y);
 
   const preview: Preview | null = useMemo(() => {
-    if (!pointer?.dragging) return null;
-    const hit = targetAt(pointer.partId, pointer.x, pointer.y, pointer.uid);
-    return hit ? { ...hit, movingUid: pointer.uid } : null;
-  }, [pointer, targetAt]);
+    if (pointer?.dragging) {
+      if (pointer.uid && overTrash(pointer.x, pointer.y)) return null;
+      return targetAt(pointer.partId, pointer.x, pointer.y, pointer.uid);
+    }
+    // Klick-Platzieren: dieselbe Vorschau an der Mausposition.
+    if (armedPartId && hover && !pointer) return targetAt(armedPartId, hover.x, hover.y);
+    return null;
+  }, [pointer, armedPartId, hover, targetAt, overTrash]);
 
   // --- Klick-Platzierung mit ausgewähltem Bibliotheksteil ------------------------
   const handleCanvasClick = (clientX: number, clientY: number) => {
@@ -296,24 +320,32 @@ export function App() {
               </button>
             </div>
           )}
-          <div className="canvas-scroll">
-            <CabinetCanvas
-              svgRef={svgRef}
-              project={project}
-              geo={geo}
-              selectedUid={selectedUid}
-              preview={preview}
-              armed={!!armedPartId}
-              onPartPointerDown={(uid, e) => {
-                e.stopPropagation();
-                const p = project.placements.find((x) => x.uid === uid);
-                if (!p) return;
-                setSelectedUid(uid);
-                setArmedPartId(null);
-                beginPointer(p.partId, e, uid);
-              }}
-              onBackgroundClick={handleCanvasClick}
-            />
+          <div className="canvas-stage">
+            <TrashZone side="left" ref={trashLeft} active={draggingPlaced} hot={trashHot} />
+            <TrashZone side="right" ref={trashRight} active={draggingPlaced} hot={trashHot} />
+            <div className="canvas-scroll">
+              <CabinetCanvas
+                svgRef={svgRef}
+                project={project}
+                geo={geo}
+                selectedUid={selectedUid}
+                preview={preview}
+                movingUid={pointer?.dragging ? pointer.uid : undefined}
+                armed={!!armedPartId}
+                onPartPointerDown={(uid, e) => {
+                  e.stopPropagation();
+                  const p = project.placements.find((x) => x.uid === uid);
+                  if (!p) return;
+                  setSelectedUid(uid);
+                  setArmedPartId(null);
+                  beginPointer(p.partId, e, uid);
+                }}
+                onBackgroundClick={handleCanvasClick}
+                onHover={setHover}
+                onDuplicate={duplicate}
+                onRemove={remove}
+              />
+            </div>
           </div>
         </section>
 
@@ -322,14 +354,12 @@ export function App() {
           template={template}
           selected={selected}
           onUpdate={(uid, patch) => dispatch({ type: 'UPDATE_PLACEMENT', uid, patch })}
-          onRemove={remove}
-          onDuplicate={duplicate}
         />
       </main>
 
       {dragPart && pointer && !preview && (
-        <div className="drag-ghost" style={{ left: pointer.x, top: pointer.y }}>
-          {dragPart.name}
+        <div className={`drag-ghost ${trashHot ? 'delete' : ''}`} style={{ left: pointer.x, top: pointer.y }}>
+          {trashHot ? `${dragPart.name} entfernen` : dragPart.name}
         </div>
       )}
 
@@ -343,3 +373,17 @@ export function App() {
     </div>
   );
 }
+
+/** Rote Ablagefläche zum Löschen platzierter Bauteile (Treffer wird in App geprüft). */
+const TrashZone = forwardRef<HTMLDivElement, { side: 'left' | 'right'; active: boolean; hot: boolean }>(
+  function TrashZone({ side, active, hot }, ref) {
+    return (
+      <div ref={ref} className={`trash-zone ${side} ${active ? 'active' : ''} ${hot ? 'hot' : ''}`} aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" />
+        </svg>
+        <span>Hierher ziehen zum Löschen</span>
+      </div>
+    );
+  },
+);

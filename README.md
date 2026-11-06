@@ -21,9 +21,12 @@ npm run build      # Typecheck + Produktions-Build
   dann auf eine Hutschiene klicken (mehrfach, `Esc` beendet).
 - Bauteile rasten im **TE-Raster** (halbe TE) ein; Überlappung und Überlauf
   werden verhindert, belegte Stellen weichen auf die nächste freie Position aus.
-- Platzierte Teile verschieben (ziehen oder `←`/`→`), löschen (`Entf`),
-  duplizieren; **BMK** wird automatisch vorgeschlagen (`-F1`, `-K1`, `-X1` …) und
-  ist wie eine **Notiz** pro Bauteil editierbar.
+- Platzierte Teile verschieben (ziehen oder `←`/`→`). Am gewählten Teil:
+  Duplizieren-Knopf darüber, rotes × darunter. Löschen außerdem mit `Entf` oder
+  durch Ziehen in die roten Flächen, die beim Ziehen links/rechts erscheinen.
+- **BMK** wird automatisch vorgeschlagen (`-F1`, `-K1`, `-X1` …) und ist wie eine
+  **Notiz** pro Bauteil editierbar; Hintergrundinfo zur Bauteilart hinter dem
+  **i**-Knopf.
 - `Strg+Z` / `Strg+Y`: Rückgängig / Wiederholen. Der Stand wird automatisch im
   Browser gespeichert.
 

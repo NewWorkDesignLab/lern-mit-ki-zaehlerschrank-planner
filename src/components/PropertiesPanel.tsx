@@ -1,7 +1,9 @@
 // ---------------------------------------------------------------------------
 // Rechte Spalte: Eigenschaften des gewählten Bauteils + Stückliste.
+// Der Nachschlagetext zur Bauteilart liegt hinter dem i-Button.
 // ---------------------------------------------------------------------------
 
+import { useState } from 'react';
 import { CATEGORY_LABEL, getPart } from '../catalog/parts';
 import { getInfo } from '../content/infotexts';
 import type { CabinetTemplate, Placement, Project } from '../domain/types';
@@ -14,28 +16,41 @@ interface Props {
   template: CabinetTemplate;
   selected: Placement | null;
   onUpdate: (uid: string, patch: Partial<Pick<Placement, 'bmk' | 'note'>>) => void;
-  onRemove: (uid: string) => void;
-  onDuplicate: (uid: string) => void;
 }
 
-export function PropertiesPanel({ project, template, selected, onUpdate, onRemove, onDuplicate }: Props) {
+export function PropertiesPanel({ project, template, selected, onUpdate }: Props) {
+  const [showInfo, setShowInfo] = useState(false);
+  const selectedPart = selected ? getPart(selected.partId) : undefined;
+  const hasInfo = !!selectedPart?.infoKey && !!getInfo(selectedPart.infoKey);
   return (
     <aside className="sidebar">
       <section className="panel props">
-        <h2 className="panel-title">Eigenschaften</h2>
+        <div className="panel-head">
+          <h2 className="panel-title">Eigenschaften</h2>
+          {hasInfo && (
+            <button
+              className={`info-btn ${showInfo ? 'active' : ''}`}
+              onClick={() => setShowInfo((v) => !v)}
+              title={showInfo ? 'Hintergrundinfo ausblenden' : 'Hintergrundinfo anzeigen'}
+              aria-pressed={showInfo}
+            >
+              i
+            </button>
+          )}
+        </div>
         {selected ? (
           <SelectedPart
             key={selected.uid}
             placement={selected}
             template={template}
+            showInfo={showInfo}
             onUpdate={onUpdate}
-            onRemove={onRemove}
-            onDuplicate={onDuplicate}
           />
         ) : (
           <p className="muted">
-            Ein Bauteil im Schrank anklicken, um BMK, Notiz und technische Daten zu sehen. Verschieben per
-            Ziehen oder mit <kbd>←</kbd>/<kbd>→</kbd>, löschen mit <kbd>Entf</kbd>.
+            Ein Bauteil im Schrank anklicken, um BMK, Notiz und technische Daten zu sehen. Verschieben per Ziehen oder mit{' '}
+            <kbd>←</kbd>/<kbd>→</kbd>; löschen mit <kbd>Entf</kbd>, dem roten × oder durch Ziehen in eine der roten
+            Flächen, die beim Ziehen neben dem Schrank erscheinen.
           </p>
         )}
       </section>
@@ -47,15 +62,13 @@ export function PropertiesPanel({ project, template, selected, onUpdate, onRemov
 function SelectedPart({
   placement,
   template,
+  showInfo,
   onUpdate,
-  onRemove,
-  onDuplicate,
 }: {
   placement: Placement;
   template: CabinetTemplate;
+  showInfo: boolean;
   onUpdate: Props['onUpdate'];
-  onRemove: Props['onRemove'];
-  onDuplicate: Props['onDuplicate'];
 }) {
   const part = getPart(placement.partId);
   if (!part) return null;
@@ -82,6 +95,13 @@ function SelectedPart({
           <span className="muted">{CATEGORY_LABEL[part.category]}</span>
         </div>
       </div>
+
+      {showInfo && info && (
+        <div className="info-box">
+          <b>{info.title}</b>
+          <p>{info.body}</p>
+        </div>
+      )}
 
       <label className="field">
         <span>BMK</span>
@@ -115,22 +135,6 @@ function SelectedPart({
           </div>
         ))}
       </dl>
-
-      <div className="props-actions">
-        <button className="btn" onClick={() => onDuplicate(placement.uid)}>
-          Duplizieren
-        </button>
-        <button className="btn danger" onClick={() => onRemove(placement.uid)}>
-          Entfernen
-        </button>
-      </div>
-
-      {info && (
-        <details className="info">
-          <summary>{info.title}</summary>
-          <p>{info.body}</p>
-        </details>
-      )}
     </div>
   );
 }
