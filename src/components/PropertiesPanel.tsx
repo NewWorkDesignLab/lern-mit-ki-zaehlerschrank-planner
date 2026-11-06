@@ -1,12 +1,11 @@
 // ---------------------------------------------------------------------------
 // Rechte Spalte: Eigenschaften des gewählten Bauteils + Stückliste.
-// Der Nachschlagetext zur Bauteilart liegt hinter dem i-Button.
+// Weitere Herstellerangaben (Norm, Artikel-Nr., Datenblatt …) liegen hinter dem i-Button.
 // ---------------------------------------------------------------------------
 
 import { useState } from 'react';
 import { CATEGORY_LABEL, getPart } from '../catalog/parts';
-import { getInfo } from '../content/infotexts';
-import type { CabinetTemplate, Placement, Project } from '../domain/types';
+import type { CabinetTemplate, CatalogPart, Placement, Project } from '../domain/types';
 import { formatTe } from './CabinetCanvas';
 import { BillOfMaterials } from './BillOfMaterials';
 import { PartThumb } from './PartGraphic';
@@ -21,7 +20,7 @@ interface Props {
 export function PropertiesPanel({ project, template, selected, onUpdate }: Props) {
   const [showInfo, setShowInfo] = useState(false);
   const selectedPart = selected ? getPart(selected.partId) : undefined;
-  const hasInfo = !!selectedPart?.infoKey && !!getInfo(selectedPart.infoKey);
+  const hasInfo = !!selectedPart && hasDetails(selectedPart);
   return (
     <aside className="sidebar">
       <section className="panel props">
@@ -31,7 +30,7 @@ export function PropertiesPanel({ project, template, selected, onUpdate }: Props
             <button
               className={`info-btn ${showInfo ? 'active' : ''}`}
               onClick={() => setShowInfo((v) => !v)}
-              title={showInfo ? 'Hintergrundinfo ausblenden' : 'Hintergrundinfo anzeigen'}
+              title={showInfo ? 'Herstellerangaben ausblenden' : 'Herstellerangaben anzeigen'}
               aria-pressed={showInfo}
             >
               i
@@ -59,6 +58,10 @@ export function PropertiesPanel({ project, template, selected, onUpdate }: Props
   );
 }
 
+function hasDetails(part: CatalogPart): boolean {
+  return !!part.articleNo || !!part.datasheetUrl || Object.keys(part.details ?? {}).length > 0;
+}
+
 function SelectedPart({
   placement,
   template,
@@ -74,7 +77,6 @@ function SelectedPart({
   if (!part) return null;
   const field = template.fields[placement.field];
   const zone = field?.zones[placement.zone];
-  const info = part.infoKey ? getInfo(part.infoKey) : undefined;
   const position =
     zone?.kind === 'rail'
       ? `${field.name} · ${zone.label} · TE ${formatTe(placement.te + 1)}–${formatTe(placement.te + part.widthTE)}`
@@ -96,10 +98,31 @@ function SelectedPart({
         </div>
       </div>
 
-      {showInfo && info && (
+      {showInfo && hasDetails(part) && (
         <div className="info-box">
-          <b>{info.title}</b>
-          <p>{info.body}</p>
+          <b>Herstellerangaben</b>
+          <dl className="specs">
+            <dt>Hersteller</dt>
+            <dd>{part.manufacturer}</dd>
+            {part.articleNo && (
+              <>
+                <dt>Artikel-Nr.</dt>
+                <dd>{part.articleNo}</dd>
+              </>
+            )}
+            {Object.entries(part.details ?? {}).map(([k, v]) => (
+              <div key={k} className="specs-row">
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+          {part.datasheetUrl && (
+            <a href={part.datasheetUrl} target="_blank" rel="noreferrer">
+              Datenblatt öffnen
+            </a>
+          )}
+          <span className="info-note">Beispieldaten – vor dem Aufbau mit dem Datenblatt abgleichen.</span>
         </div>
       )}
 

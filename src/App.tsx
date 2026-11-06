@@ -5,6 +5,7 @@ import { TEMPLATES, getTemplate } from './catalog/templates';
 import { CabinetCanvas } from './components/CabinetCanvas';
 import type { Preview } from './components/CabinetCanvas';
 import { Library } from './components/Library';
+import { PartThumb } from './components/PartGraphic';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { ShareDialog } from './components/ShareDialog';
 import { Toolbar } from './components/Toolbar';
@@ -358,8 +359,12 @@ export function App() {
       </main>
 
       {dragPart && pointer && !preview && (
+        // Frei schwebender Geist am Mauszeiger, solange das Teil nirgends einrastet.
         <div className={`drag-ghost ${trashHot ? 'delete' : ''}`} style={{ left: pointer.x, top: pointer.y }}>
-          {trashHot ? `${dragPart.name} entfernen` : dragPart.name}
+          <span className="drag-ghost-part">
+            <PartThumb part={dragPart} size={84} />
+          </span>
+          <span className="drag-ghost-label">{trashHot ? `${dragPart.name} entfernen` : dragPart.name}</span>
         </div>
       )}
 

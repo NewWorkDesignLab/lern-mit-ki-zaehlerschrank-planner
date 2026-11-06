@@ -409,7 +409,12 @@ textarea:focus {
   filter: brightness(1.12) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
 }
 
-.drag-ghost.delete {
+.drag-ghost.delete .drag-ghost-part {
+  border-color: var(--err);
+  background: rgba(254, 226, 226, 0.92);
+}
+
+.drag-ghost.delete .drag-ghost-label {
   background: var(--err);
 }
 
@@ -460,18 +465,40 @@ textarea:focus {
   border-bottom: 1px solid rgba(217, 119, 6, 0.3);
 }
 
+/* Schwebende Bauteilvorschau am Mauszeiger (Bild zentriert auf dem Cursor). */
 .drag-ghost {
   position: fixed;
   z-index: 50;
-  transform: translate(12px, 12px);
-  padding: 5px 10px;
+  transform: translate(-50%, -42px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.drag-ghost-part {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 2px solid var(--text-1);
+  box-shadow: var(--shadow);
+  opacity: 0.9;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.drag-ghost-label {
+  padding: 3px 9px;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
   border-radius: 8px;
   background: var(--text-0);
   color: #fff;
-  pointer-events: none;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 /* --- Rechte Spalte -------------------------------------------------------- */
@@ -604,9 +631,14 @@ textarea:focus {
   color: var(--accent-text);
 }
 
-.info-box p {
-  margin: 0;
-  color: var(--text-1);
+.info-box a {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.info-note {
+  font-size: 11.5px;
+  color: var(--text-2);
 }
 
 .props > .muted {

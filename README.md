@@ -25,8 +25,8 @@ npm run build      # Typecheck + Produktions-Build
   Duplizieren-Knopf darüber, rotes × darunter. Löschen außerdem mit `Entf` oder
   durch Ziehen in die roten Flächen, die beim Ziehen links/rechts erscheinen.
 - **BMK** wird automatisch vorgeschlagen (`-F1`, `-K1`, `-X1` …) und ist wie eine
-  **Notiz** pro Bauteil editierbar; Hintergrundinfo zur Bauteilart hinter dem
-  **i**-Knopf.
+  **Notiz** pro Bauteil editierbar. Eckdaten stehen direkt da, weitere
+  Herstellerangaben (Artikel-Nr., Norm, Datenblatt …) hinter dem **i**-Knopf.
 - `Strg+Z` / `Strg+Y`: Rückgängig / Wiederholen. Der Stand wird automatisch im
   Browser gespeichert.
 
@@ -40,7 +40,7 @@ npm run build      # Typecheck + Produktions-Build
 ## Daten erweitern
 
 - **Bauteile:** `src/catalog/parts.ts` – Hersteller, Kategorie, Breite in TE,
-  technische Daten, optional ein Foto (`src/catalog/art.ts`, Gerätebereich in
+  Eckdaten (`specs`), Herstellerangaben (`details`, `datasheetUrl`), optional ein Foto (`src/catalog/art.ts`, Gerätebereich in
   Pixeln vermessen). Ohne Foto wird eine generische Gerätegrafik gezeichnet.
   Die enthaltenen Daten sind **Beispieldaten** und mit Datenblättern abzugleichen.
 - **Schränke:** `src/catalog/templates.ts` – Felder mit Zonen (Hutschiene mit
@@ -58,5 +58,4 @@ src/
   export/      png.ts, share.ts (Link/QR), file.ts (JSON)
   components/  Toolbar, Library, CabinetCanvas, PartGraphic,
                PropertiesPanel, BillOfMaterials, ShareDialog
-  content/     infotexts.ts – Nachschlagetexte zu Bauteilarten
 ```

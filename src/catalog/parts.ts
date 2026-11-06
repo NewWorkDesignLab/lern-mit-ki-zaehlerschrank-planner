@@ -59,8 +59,8 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 3,
     specs: { Nennstrom: '35 A', Charakteristik: 'E (selektiv)', Pole: '3' },
+    details: { Gerätereihe: 'S750DR', Norm: 'DIN VDE 0641-21', Bemessungsspannung: '400 V AC', Schaltvermögen: '25 kA', Plombierbar: 'ja' },
     art: ART.sls,
-    infoKey: 'sls',
   },
   {
     id: 'msb-zaehler',
@@ -70,8 +70,8 @@ export const CATALOG: CatalogPart[] = [
     widthTE: 0,
     mount: 'meter',
     specs: { Ausführung: 'Zweirichtungszähler', Befestigung: 'Zählerplatz' },
+    details: { Bereitstellung: 'durch Messstellenbetreiber', Messung: '3-phasig', Befestigung: 'Dreipunktbefestigung / BKE' },
     art: ART.meter,
-    infoKey: 'meter',
   },
 
   // --- Überspannungsschutz -----------------------------------------------
@@ -85,8 +85,8 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 4,
     specs: { Typ: 'T2', Pole: '3+N', In: '20 kA', Up: '≤ 1,5 kV' },
+    details: { Norm: 'DIN EN 61643-11', Netzsystem: 'TN-S / TT', Bemessungsspannung: '230/400 V AC', Imax: '40 kA' },
     art: ART.uss,
-    infoKey: 'uss',
   },
 
   // --- RCD ---------------------------------------------------------------
@@ -100,8 +100,8 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 4,
     specs: { Typ: 'A', Nennstrom: '40 A', 'IΔn': '30 mA', Pole: '4' },
+    details: { Gerätereihe: 'F200', Norm: 'DIN EN 61008-1', Bemessungsspannung: '230/400 V AC', Bemessungskurzschlussstrom: '10 kA (mit Vorsicherung)', Anschlussquerschnitt: 'bis 25 mm²' },
     art: ART.rcdA,
-    infoKey: 'rcd-type-choice',
   },
   {
     id: 'abb-f204b-40',
@@ -113,8 +113,8 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 4,
     specs: { Typ: 'B', Nennstrom: '40 A', 'IΔn': '30 mA', Pole: '4' },
+    details: { Gerätereihe: 'F200', Norm: 'DIN EN 61008-1, IEC 62423', Bemessungsspannung: '230/400 V AC', Bemessungskurzschlussstrom: '10 kA (mit Vorsicherung)', Anschlussquerschnitt: 'bis 25 mm²' },
     art: ART.rcdB,
-    infoKey: 'rcd-type-b',
   },
   {
     id: 'hager-cda440d',
@@ -126,7 +126,7 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 4,
     specs: { Typ: 'A', Nennstrom: '40 A', 'IΔn': '30 mA', Pole: '4' },
-    infoKey: 'rcd-type-choice',
+    details: { Norm: 'DIN EN 61008-1', Bemessungsspannung: '230/400 V AC', Bemessungskurzschlussstrom: '10 kA (mit Vorsicherung)', Anschlussquerschnitt: 'bis 25 mm²' },
   },
 
   // --- FI/LS ---------------------------------------------------------------
@@ -140,8 +140,8 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 4,
     specs: { Charakteristik: 'K', Nennstrom: '20 A', 'IΔn': '100 mA', Pole: '3+N' },
+    details: { Gerätereihe: 'DS203NC', Norm: 'DIN EN 61009-1', Bemessungsspannung: '400 V AC', Schaltvermögen: '6 kA', 'FI-Typ': 'A' },
     art: ART.fiLsK20,
-    infoKey: 'ls-characteristic',
   },
 
   // --- LS ------------------------------------------------------------------
@@ -154,8 +154,8 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 1,
     specs: { Charakteristik: 'B', Nennstrom: '16 A', Pole: '1', Schaltvermögen: '6 kA' },
+    details: { Gerätereihe: 'S200', Norm: 'DIN EN 60898-1', Bemessungsspannung: '230/400 V AC', Energiebegrenzungsklasse: '3', Anschlussquerschnitt: 'bis 25 mm²' },
     art: ART.lsB16,
-    infoKey: 'ls-cross-section',
   },
   {
     id: 'abb-s201-b25',
@@ -166,8 +166,8 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 1,
     specs: { Charakteristik: 'B', Nennstrom: '25 A', Pole: '1', Schaltvermögen: '6 kA' },
+    details: { Gerätereihe: 'S200', Norm: 'DIN EN 60898-1', Bemessungsspannung: '230/400 V AC', Energiebegrenzungsklasse: '3', Anschlussquerschnitt: 'bis 25 mm²' },
     art: ART.lsB25,
-    infoKey: 'ls-cross-section',
   },
   {
     id: 'hager-mbn116',
@@ -179,7 +179,7 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 1,
     specs: { Charakteristik: 'B', Nennstrom: '16 A', Pole: '1', Schaltvermögen: '6 kA' },
-    infoKey: 'ls-cross-section',
+    details: { Norm: 'DIN EN 60898-1', Bemessungsspannung: '230/400 V AC', Energiebegrenzungsklasse: '3', Anschlussquerschnitt: 'bis 25 mm²' },
   },
   {
     id: 'hager-mbn316',
@@ -191,7 +191,7 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 3,
     specs: { Charakteristik: 'B', Nennstrom: '16 A', Pole: '3', Schaltvermögen: '6 kA' },
-    infoKey: 'ls-cross-section',
+    details: { Norm: 'DIN EN 60898-1', Bemessungsspannung: '230/400 V AC', Energiebegrenzungsklasse: '3', Anschlussquerschnitt: 'bis 25 mm²' },
   },
   {
     id: 'siemens-5sl6116-6',
@@ -203,7 +203,7 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 1,
     specs: { Charakteristik: 'B', Nennstrom: '16 A', Pole: '1', Schaltvermögen: '6 kA' },
-    infoKey: 'ls-cross-section',
+    details: { Gerätereihe: '5SL6', Norm: 'DIN EN 60898-1', Bemessungsspannung: '230/400 V AC', Energiebegrenzungsklasse: '3', Anschlussquerschnitt: 'bis 25 mm²' },
   },
 
   // --- Steuerung -------------------------------------------------------------
@@ -215,8 +215,8 @@ export const CATALOG: CatalogPart[] = [
     widthTE: 6,
     mount: 'rail',
     specs: { Relais: '4', Schnittstelle: 'LAN', Einsatz: 'SG-Ready / Lastmanagement' },
+    details: { Versorgung: '230 V AC', Bedienung: 'Weboberfläche', Netzwerk: 'Ethernet (RJ45)', Montage: 'Hutschiene TS 35' },
     art: ART.gudeEnc,
-    infoKey: 'sg-ready',
   },
 
   // --- Schalter / Schütze ----------------------------------------------------
@@ -229,6 +229,7 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 2,
     specs: { Nennstrom: '25 A', Kontakte: '2 Schließer', Spule: '230 V AC' },
+    details: { Norm: 'DIN EN 61095', Bemessungsspannung: '230/400 V AC' },
   },
   {
     id: 'gen-hauptschalter-63',
@@ -239,6 +240,7 @@ export const CATALOG: CatalogPart[] = [
     mount: 'rail',
     poles: 3,
     specs: { Nennstrom: '63 A', Pole: '3' },
+    details: { Norm: 'DIN EN 60947-3', Bemessungsspannung: '400 V AC' },
   },
 
   // --- Klemmen ---------------------------------------------------------------
@@ -250,6 +252,7 @@ export const CATALOG: CatalogPart[] = [
     widthTE: 2,
     mount: 'rail',
     specs: { Leiter: 'N' },
+    details: { Anschlussquerschnitt: 'bis 16 mm²' },
   },
   {
     id: 'gen-pe-klemme',
@@ -259,6 +262,7 @@ export const CATALOG: CatalogPart[] = [
     widthTE: 2,
     mount: 'rail',
     specs: { Leiter: 'PE' },
+    details: { Anschlussquerschnitt: 'bis 16 mm²' },
   },
 ];
 

@@ -58,8 +58,10 @@ export interface CatalogPart {
   /** Technische Daten zur Anzeige, z. B. { Nennstrom: '16 A' }. */
   specs: Record<string, string>;
   art?: PartArt;
-  /** Schlüssel für den Nachschlagetext (content/infotexts.ts). */
-  infoKey?: string;
+  /** Weitere Herstellerangaben hinter dem i-Knopf, z. B. { Norm: 'DIN EN 60898-1' }. */
+  details?: Record<string, string>;
+  /** Link zum Hersteller-Datenblatt. */
+  datasheetUrl?: string;
 }
 
 // --- Schrankvorlagen --------------------------------------------------------
