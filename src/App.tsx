@@ -1,256 +1,345 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { getPart } from './catalog/parts';
+import { TEMPLATES, getTemplate } from './catalog/templates';
+import { CabinetCanvas } from './components/CabinetCanvas';
+import type { Preview } from './components/CabinetCanvas';
+import { Library } from './components/Library';
+import { PropertiesPanel } from './components/PropertiesPanel';
+import { ShareDialog } from './components/ShareDialog';
 import { Toolbar } from './components/Toolbar';
-import { Palette } from './components/Palette';
-import { Board } from './components/Board';
-import { InfoPanel } from './components/InfoPanel';
-import { HintPanel } from './components/HintPanel';
-import { CompletionScreen } from './components/CompletionScreen';
-import { SolvedBar } from './components/SolvedBar';
-import { NarrativeToast } from './components/NarrativeToast';
-import { ScrollCue } from './components/ScrollCue';
-import { LevelSelect } from './components/LevelSelect';
-import { LoadManagementAmpel } from './components/LoadManagementAmpel';
-import { buildHints } from './domain/hints';
-import type { Violation } from './domain/rules';
-import { validateLevel } from './domain/rules';
-import type { LevelDefinition, ViewMode } from './domain/types';
-import { LEVEL_LIST, nextLevel } from './levels/registry';
-import { useLevelState } from './state/store';
+import { computeGeometry } from './domain/geometry';
+import { canPlace, firstFreeSpot, retainFitting } from './domain/layout';
+import { computeTarget } from './domain/target';
+import { readProjectFile, saveProjectFile } from './export/file';
+import { exportPng } from './export/png';
+import { HASH_PREFIX, decodeProject } from './export/share';
+import { newUid, useProject } from './state/store';
 
-// ---------------------------------------------------------------------------
-// App: Navigation zwischen Level-Auswahl und Spielansicht + Fortschritt.
-// ---------------------------------------------------------------------------
+/** Ab dieser Mausbewegung (px) wird aus einem Klick ein Ziehen. */
+const DRAG_THRESHOLD = 5;
+
+interface Pointer {
+  partId: string;
+  /** Gesetzt, wenn ein bereits platziertes Bauteil bewegt wird. */
+  uid?: string;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+  dragging: boolean;
+}
 
 export function App() {
-  const [completed, setCompleted] = useState<ReadonlySet<string>>(new Set());
-  const [currentId, setCurrentId] = useState<string | null>(null);
+  const { project, canUndo, canRedo, dispatch } = useProject();
+  const template = getTemplate(project.templateId) ?? TEMPLATES[0];
+  const geo = useMemo(() => computeGeometry(template), [template]);
 
-  const markCompleted = useCallback((id: string) => {
-    setCompleted((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  const [armedPartId, setArmedPartId] = useState<string | null>(null);
+  const [pointer, setPointer] = useState<Pointer | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  /** Unterdrückt den Klick, der nach einem Ziehen ausgelöst wird. */
+  const suppressClick = useRef(false);
+
+  const selected = project.placements.find((p) => p.uid === selectedUid) ?? null;
+
+  const notify = useCallback((msg: string) => setToast(msg), []);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // --- Projekt aus Link laden (einmalig beim Start) ---------------------------
+  useEffect(() => {
+    const { hash } = window.location;
+    if (!hash.startsWith(HASH_PREFIX)) return;
+    decodeProject(hash.slice(HASH_PREFIX.length))
+      .then((p) => {
+        dispatch({ type: 'LOAD', project: p });
+        notify(`„${p.name}“ aus Link geladen – Rückgängig stellt deinen vorherigen Stand wieder her.`);
+      })
+      .catch((e: unknown) => notify(e instanceof Error ? e.message : 'Link konnte nicht gelesen werden.'))
+      .finally(() => history.replaceState(null, '', window.location.pathname + window.location.search));
+  }, [dispatch, notify]);
+
+  // --- Bildschirm- -> SVG-Koordinaten --------------------------------------------
+  const toSvg = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    return pt.matrixTransform(ctm.inverse());
   }, []);
 
-  const current = currentId ? LEVEL_LIST.find((l) => l.id === currentId) : undefined;
-
-  if (!current) {
-    return (
-      <LevelSelect levels={LEVEL_LIST} completed={completed} onPick={setCurrentId} />
-    );
-  }
-
-  return (
-    <LevelView
-      key={current.id}
-      level={current}
-      onExit={() => setCurrentId(null)}
-      onComplete={() => markCompleted(current.id)}
-      onNext={() => {
-        const nxt = nextLevel(current.id);
-        setCurrentId(nxt ? nxt.id : null);
-      }}
-      hasNext={!!nextLevel(current.id)}
-    />
+  const targetAt = useCallback(
+    (partId: string, clientX: number, clientY: number, excludeUid?: string) => {
+      const part = getPart(partId);
+      const p = toSvg(clientX, clientY);
+      if (!part || !p) return null;
+      const target = computeTarget(template, geo, project.placements, part, p.x, p.y, excludeUid);
+      return target ? { part, target } : null;
+    },
+    [toSvg, template, geo, project.placements],
   );
-}
 
-// ---------------------------------------------------------------------------
-// LevelView: eine spielbare Level-Instanz (durch key={level.id} frisch je Level).
-// ---------------------------------------------------------------------------
-
-interface LevelViewProps {
-  level: LevelDefinition;
-  onExit: () => void;
-  onComplete: () => void;
-  onNext: () => void;
-  hasNext: boolean;
-}
-
-function LevelView({ level, onExit, onComplete, onNext, hasNext }: LevelViewProps) {
-  const [state, dispatch] = useLevelState(level);
-  const [view, setView] = useState<ViewMode>('game');
-  const [infoKey, setInfoKey] = useState<string | null>(null);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [ampelSolved, setAmpelSolved] = useState(false);
-  // Abschluss-Overlay weggeklickt? Dann bleibt das Level offen und der Weg
-  // weiter läuft über die SolvedBar.
-  const [summaryDismissed, setSummaryDismissed] = useState(false);
-  // Hochzählen montiert den Auftrags-Toast neu – so lässt er sich erneut zeigen.
-  const [narrativeSeq, setNarrativeSeq] = useState(0);
-  // Ziel für den Scroll-Hinweis auf die zweite Aufgabe (Lastmanagement).
-  const ampelRef = useRef<HTMLDivElement>(null);
-
-  const selectPaletteItem = (id: string, info: string) => {
-    setSelectedItemId((prev) => (prev === id ? null : id));
-    setInfoKey(info);
+  // --- Ziehen (Bibliothek -> Schrank, und Verschieben im Schrank) ----------------
+  const beginPointer = (partId: string, e: ReactPointerEvent, uid?: string) => {
+    if (e.button !== 0) return;
+    setPointer({ partId, uid, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, dragging: false });
   };
 
-  const handleSlotClick = (slotId: string, slotInfoKey: string) => {
-    if (selectedItemId) {
-      const slot = level.branches.flatMap((b) => b.slots).find((s) => s.id === slotId);
-      if (slot && !slot.locked && !slot.prefilledItemId) {
-        dispatch({ type: 'PLACE', slotId, itemId: selectedItemId });
+  useEffect(() => {
+    if (!pointer) return;
+    const move = (e: PointerEvent) => {
+      setPointer((p) => {
+        if (!p) return p;
+        const dragging = p.dragging || Math.hypot(e.clientX - p.startX, e.clientY - p.startY) > DRAG_THRESHOLD;
+        return { ...p, x: e.clientX, y: e.clientY, dragging };
+      });
+    };
+    const up = (e: PointerEvent) => {
+      const p = pointer;
+      setPointer(null);
+      if (!p.dragging) return;
+      suppressClick.current = true;
+      setTimeout(() => (suppressClick.current = false), 0);
+      const hit = targetAt(p.partId, e.clientX, e.clientY, p.uid);
+      if (!hit || !hit.target.valid) {
+        if (hit) notify('Dort ist kein Platz für dieses Bauteil.');
         return;
       }
+      const { field, zone, te } = hit.target;
+      if (p.uid) {
+        dispatch({ type: 'MOVE', uid: p.uid, field, zone, te });
+      } else {
+        const uid = newUid();
+        dispatch({ type: 'ADD', uid, partId: p.partId, field, zone, te });
+        setSelectedUid(uid);
+      }
+    };
+    const cancel = () => setPointer(null);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+    };
+  }, [pointer, targetAt, dispatch, notify]);
+
+  const preview: Preview | null = useMemo(() => {
+    if (!pointer?.dragging) return null;
+    const hit = targetAt(pointer.partId, pointer.x, pointer.y, pointer.uid);
+    return hit ? { ...hit, movingUid: pointer.uid } : null;
+  }, [pointer, targetAt]);
+
+  // --- Klick-Platzierung mit ausgewähltem Bibliotheksteil ------------------------
+  const handleCanvasClick = (clientX: number, clientY: number) => {
+    if (suppressClick.current) return;
+    if (!armedPartId) {
+      setSelectedUid(null);
+      return;
     }
-    setInfoKey(slotInfoKey);
+    const hit = targetAt(armedPartId, clientX, clientY);
+    if (!hit) return;
+    if (!hit.target.valid) {
+      notify('Dort ist kein Platz für dieses Bauteil.');
+      return;
+    }
+    const uid = newUid();
+    dispatch({ type: 'ADD', uid, partId: armedPartId, ...hit.target });
+    setSelectedUid(uid);
   };
 
-  const validation = useMemo(
-    () => validateLevel(level, state.placement),
-    [level, state.placement],
+  // --- Aktionen ------------------------------------------------------------------
+  const remove = useCallback(
+    (uid: string) => {
+      dispatch({ type: 'REMOVE', uid });
+      setSelectedUid((s) => (s === uid ? null : s));
+    },
+    [dispatch],
   );
 
-  const violationBySlot = useMemo(() => {
-    const map: Record<string, Violation> = {};
-    for (const v of validation.violations) map[v.slotId] = v;
-    return map;
-  }, [validation.violations]);
-
-  const hints = useMemo(
-    () => buildHints(state.history, validation.violations),
-    [state.history, validation.violations],
-  );
-
-  // Adaptiv: bei Stufe 3 passendes Infofeld automatisch öffnen.
-  const autoOpen = hints.find((h) => h.level === 3 && h.autoOpenInfoKey)?.autoOpenInfoKey;
-  useEffect(() => {
-    if (autoOpen) setInfoKey(autoOpen);
-  }, [autoOpen]);
-
-  // Gesamt-Lösung: Verdrahtung korrekt UND (falls vorhanden) Lastmanagement gemeistert.
-  const wiringSolved = validation.solved;
-  const solved = wiringSolved && (!level.loadManagement || ampelSolved);
-
-  // onComplete genau einmal melden.
-  const reported = useRef(false);
-  useEffect(() => {
-    if (solved && !reported.current) {
-      reported.current = true;
-      onComplete();
+  const duplicate = (uid: string) => {
+    const src = project.placements.find((p) => p.uid === uid);
+    const part = src && getPart(src.partId);
+    if (!src || !part) return;
+    const spot = firstFreeSpot(template, project.placements, part, {
+      field: src.field,
+      zone: src.zone,
+      te: src.te + part.widthTE,
+    });
+    if (!spot) {
+      notify('Kein freier Platz mehr für dieses Bauteil.');
+      return;
     }
-  }, [solved, onComplete]);
+    const newId = newUid();
+    dispatch({ type: 'ADD', uid: newId, partId: part.id, ...spot });
+    setSelectedUid(newId);
+  };
+
+  const changeTemplate = (templateId: string) => {
+    const next = getTemplate(templateId);
+    if (!next) return;
+    const lost = project.placements.length - retainFitting(next, project.placements).length;
+    if (
+      lost > 0 &&
+      !window.confirm(`${lost} Bauteil(e) passen nicht in „${next.name}“ und werden entfernt. Fortfahren?`)
+    ) {
+      return;
+    }
+    dispatch({ type: 'SET_TEMPLATE', templateId });
+    setSelectedUid(null);
+  };
+
+  const handleExport = async () => {
+    if (!svgRef.current) return;
+    setExporting(true);
+    try {
+      await exportPng(svgRef.current, project, geo);
+    } catch (e) {
+      notify(`Export fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // --- Tastatur ------------------------------------------------------------------
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        dispatch({ type: e.shiftKey ? 'REDO' : 'UNDO' });
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        dispatch({ type: 'REDO' });
+      } else if (e.key === 'Escape') {
+        setArmedPartId(null);
+        setSelectedUid(null);
+      } else if (selected && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault();
+        remove(selected.uid);
+      } else if (selected && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        const part = getPart(selected.partId);
+        const te = selected.te + (e.key === 'ArrowLeft' ? -0.5 : 0.5);
+        if (part && canPlace(template, project.placements, part, selected.field, selected.zone, te, selected.uid)) {
+          e.preventDefault();
+          dispatch({ type: 'MOVE', uid: selected.uid, field: selected.field, zone: selected.zone, te });
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dispatch, selected, remove, template, project.placements]);
+
+  const dragPart = pointer?.dragging ? getPart(pointer.partId) : undefined;
 
   return (
-    <div className="app">
+    <div className={`app ${pointer?.dragging ? 'is-dragging' : ''}`}>
       <Toolbar
-        level={level}
-        view={view}
-        progress={validation.progress}
-        onView={setView}
-        onExit={onExit}
-        onShowNarrative={() => setNarrativeSeq((n) => n + 1)}
-        onReset={() => {
-          dispatch({ type: 'RESET' });
-          setInfoKey(null);
-          setSelectedItemId(null);
-          setSummaryDismissed(false);
-          reported.current = false;
+        project={project}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        exporting={exporting}
+        onRename={(name) => dispatch({ type: 'RENAME', name })}
+        onTemplate={changeTemplate}
+        onUndo={() => dispatch({ type: 'UNDO' })}
+        onRedo={() => dispatch({ type: 'REDO' })}
+        onNew={() => {
+          if (project.placements.length && !window.confirm('Neues, leeres Projekt beginnen?')) return;
+          dispatch({ type: 'NEW' });
+          setSelectedUid(null);
         }}
+        onSave={() => saveProjectFile(project)}
+        onOpen={async (file) => {
+          try {
+            dispatch({ type: 'LOAD', project: await readProjectFile(file) });
+            setSelectedUid(null);
+            notify(`„${file.name}“ geöffnet.`);
+          } catch (e) {
+            notify(e instanceof Error ? e.message : 'Datei konnte nicht geöffnet werden.');
+          }
+        }}
+        onExportPng={handleExport}
+        onShare={() => setSharing(true)}
       />
 
       <main className="app-main">
-        <Palette
-          level={level}
-          view={view}
-          selectedItemId={selectedItemId}
-          onSelect={selectPaletteItem}
+        <Library
+          armedPartId={armedPartId}
+          onChipPointerDown={(partId, e) => beginPointer(partId, e)}
+          onChipClick={(partId) => {
+            if (suppressClick.current) return;
+            setArmedPartId((cur) => (cur === partId ? null : partId));
+          }}
         />
 
-        <div className="board-wrap">
-          {solved && summaryDismissed && (
-            <SolvedBar
-              onNext={hasNext ? onNext : undefined}
-              nextLabel="Nächstes Level"
-              onShowSummary={() => setSummaryDismissed(false)}
-              onExit={onExit}
-            />
-          )}
-
-          <NarrativeToast key={narrativeSeq} text={level.narrative} />
-
-          <Board
-            level={level}
-            view={view}
-            placement={state.placement}
-            violationBySlot={violationBySlot}
-            selecting={selectedItemId !== null}
-            onPlace={(slotId, itemId) => dispatch({ type: 'PLACE', slotId, itemId })}
-            onClear={(slotId) => dispatch({ type: 'CLEAR_SLOT', slotId })}
-            onSlotClick={handleSlotClick}
-            onInfo={setInfoKey}
-          />
-
-          {level.loadManagement && (
-            <div ref={ampelRef}>
-              <LoadManagementAmpel
-                data={level.loadManagement}
-                enabled={wiringSolved}
-                onSolvedChange={setAmpelSolved}
-              />
+        <section className="panel canvas-panel">
+          {armedPartId && (
+            <div className="armed-bar">
+              <span>
+                <b>{getPart(armedPartId)?.name}</b> – auf eine freie Stelle im Schrank klicken.
+              </span>
+              <button className="btn small" onClick={() => setArmedPartId(null)}>
+                Fertig (Esc)
+              </button>
             </div>
           )}
-        </div>
+          <div className="canvas-scroll">
+            <CabinetCanvas
+              svgRef={svgRef}
+              project={project}
+              geo={geo}
+              selectedUid={selectedUid}
+              preview={preview}
+              armed={!!armedPartId}
+              onPartPointerDown={(uid, e) => {
+                e.stopPropagation();
+                const p = project.placements.find((x) => x.uid === uid);
+                if (!p) return;
+                setSelectedUid(uid);
+                setArmedPartId(null);
+                beginPointer(p.partId, e, uid);
+              }}
+              onBackgroundClick={handleCanvasClick}
+            />
+          </div>
+        </section>
 
-        <aside className="sidebar">
-          <InfoPanel infoKey={infoKey} />
-          <HintPanel
-            hints={hints}
-            loadManagementNext={Boolean(level.loadManagement) && wiringSolved}
-          />
-        </aside>
+        <PropertiesPanel
+          project={project}
+          template={template}
+          selected={selected}
+          onUpdate={(uid, patch) => dispatch({ type: 'UPDATE_PLACEMENT', uid, patch })}
+          onRemove={remove}
+          onDuplicate={duplicate}
+        />
       </main>
 
-      <footer className="app-footer">
-        Prototyp · fachlich korrekt nach Vorlage EBZ Dresden · Spiel-/Fachansicht aus
-        einem gemeinsamen Datenmodell
-      </footer>
-
-      {level.loadManagement && (
-        <ScrollCue targetRef={ampelRef} active={wiringSolved && !ampelSolved}>
-          Schrank steht – jetzt noch das Lastmanagement einstellen
-        </ScrollCue>
+      {dragPart && pointer && !preview && (
+        <div className="drag-ghost" style={{ left: pointer.x, top: pointer.y }}>
+          {dragPart.name}
+        </div>
       )}
 
-      {solved && !summaryDismissed && (
-        <CompletionScreen
-          title={
-            level.id === 'zs-wp'
-              ? 'Wärmepumpe smart eingebunden!'
-              : 'Schrank fachgerecht aufgebaut!'
-          }
-          message={completionMessage(level.id)}
-          onRestart={() => {
-            dispatch({ type: 'RESET' });
-            setInfoKey(null);
-            setSelectedItemId(null);
-            setAmpelSolved(false);
-            setSummaryDismissed(false);
-            reported.current = false;
-          }}
-          onDismiss={() => setSummaryDismissed(true)}
-          onExit={onExit}
-          onNext={hasNext ? onNext : undefined}
-          nextLabel="Nächstes Level"
-        />
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
       )}
+
+      {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
     </div>
-  );
-}
-
-function completionMessage(levelId: string): string {
-  if (levelId === 'zs-wp') {
-    return (
-      'Der Schrank ist fachgerecht verdrahtet und die Wärmepumpe läuft über das ' +
-      'SG-Ready-Schütz am Lastmanagement: Freigabe bei PV-Überschuss, Sperre in der ' +
-      'Abendspitze und beim EVU-Signal. Aktive Steuerung statt nur passivem Schutz.'
-    );
-  }
-  return (
-    'Alle Verbraucher sind versorgt, der Wechselrichter-/Wallbox-Zweig ist mit RCD Typ B ' +
-    'geschützt, die Endstromkreise korrekt dimensioniert und der Überspannungsschutz sitzt.'
   );
 }

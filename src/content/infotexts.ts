@@ -1,154 +1,69 @@
 // ---------------------------------------------------------------------------
-// Fachliche Infotexte pro Bauteil / Konzept.
-// Zentrale, fest hinterlegte Inhalte (keine LLM-Generierung).
-// Diese Texte setzen die "fachlichen Leitplanken" aus dem Scope um.
+// Nachschlagetexte zu Bauteilarten. Werden im Eigenschaften-Panel angezeigt,
+// wenn ein Bauteil mit passendem infoKey ausgewählt ist.
 // ---------------------------------------------------------------------------
 
 export interface InfoText {
   title: string;
   body: string;
-  /** Konkretes Anwendungsbeispiel. */
-  example: string;
 }
 
 export const INFOTEXTS: Record<string, InfoText> = {
   sls: {
     title: 'SLS – Selektiver Hauptleitungsschutzschalter',
     body:
-      'Der SLS sitzt vor dem Zähler und schützt die Hauptleitung. Er ist plombiert und ' +
-      'liegt in der Verantwortung des Netzbetreibers – als Elektroniker:in wählst oder ' +
-      'tauschst du ihn nicht selbst aus. Im Schrank ist er fest vorgegeben.',
-    example:
-      'Hier im PV-Schrank: +ZS2-F1, ein E 35 A (3-polig). Er ist gesperrt dargestellt – ' +
-      'deine Zuständigkeit beginnt erst dahinter.',
+      'Der SLS sitzt vor dem Zähler im oberen Anschlussraum und schützt die Hauptleitung. ' +
+      'Er ist plombiert und liegt in der Verantwortung des Netzbetreibers. Größe und ' +
+      'Charakteristik (E) gibt der Netzbetreiber vor.',
   },
-
   meter: {
     title: 'Zähler & Messeinrichtung',
     body:
-      'Der EVU-Zähler erfasst die bezogene (und bei PV die eingespeiste) Energie. ' +
-      'Die moderne Messeinrichtung / das Energy Meter liefert zusätzlich Messwerte ' +
-      'für Steuerung und Monitoring. Beide sind fester Bestandteil des Zählerfelds.',
-    example: 'Hier: +ZS2-P1 (Zweirichtungszähler) und +ZS2-J1 (Energy Meter).',
+      'Der Zähler wird vom Messstellenbetreiber gestellt und auf dem Zählerplatz montiert ' +
+      '(3-Punkt-Befestigung oder BKE/eHZ). Bei Erzeugungsanlagen kommt ein ' +
+      'Zweirichtungszähler zum Einsatz.',
   },
-
   uss: {
     title: 'ÜSS – Überspannungsschutz',
     body:
       'Ein Überspannungsschutzgerät leitet transiente Überspannungen (z. B. durch ' +
       'Blitzeinwirkung) gegen Erde ab. Ob er nötig ist, hängt vom Anlagenrisiko ab – ' +
-      'insbesondere von Leitungen im Außen- und Dachbereich. Es ist KEINE reine ' +
-      '„PV-Regel“: PV macht ihn hier nur besonders relevant, weil die Strings über Dach geführt werden.',
-    example:
-      'Hier: +ZS2-E1, direkt hinter der Messung. Ohne ihn steht die empfindliche ' +
-      'Elektronik (Wechselrichter, Energy Meter) bei Überspannung ungeschützt da.',
+      'insbesondere von Leitungen im Außen- und Dachbereich (z. B. PV-Strings).',
   },
-
   'rcd-type-choice': {
-    title: 'RCD – Typ A oder Typ B wählen',
+    title: 'RCD – Typ A oder Typ B',
     body:
-      'Typ A und Typ B sind KEINE Stärkestufen. Sie erkennen unterschiedliche ' +
-      'Fehlerstromarten. Du wählst nach der Fehlerstromquelle, nicht nach dem Motto ' +
-      '„Typ B ist sicherer“. Wo kein glatter Gleichfehlerstrom entstehen kann, ist ' +
-      'Typ A die richtige und wirtschaftliche Wahl.',
-    example:
-      'Endstromkreise hinter der Kammschiene (+ZS2-F5): hier reicht Typ A. ' +
-      'Am Wechselrichter-/Wallbox-Zweig dagegen braucht es Typ B.',
+      'Typ A und Typ B sind keine Stärkestufen, sondern erkennen unterschiedliche ' +
+      'Fehlerstromarten. Gewählt wird nach der Fehlerstromquelle: Wo kein glatter ' +
+      'Gleichfehlerstrom entstehen kann, ist Typ A die richtige und wirtschaftliche Wahl.',
   },
-
   'rcd-type-b': {
-    title: 'RCD Typ B – warum hinter dem Wechselrichter?',
+    title: 'RCD Typ B',
     body:
-      'Typ A erkennt Wechsel- und pulsierende Gleichfehlerströme. Ein Wechselrichter ' +
-      'kann im Fehlerfall aber GLATTE Gleichfehlerströme erzeugen – die „übersieht“ ein ' +
-      'Typ A, er kann sogar blockieren. Typ B erkennt zusätzlich diese glatten ' +
-      'Gleichfehlerströme und schützt daher zuverlässig.',
-    example:
-      'Hier: +ZS2-F3 am Abgang Wechselrichter/Wallbox. Deshalb Typ B, 32 A / 30 mA.',
+      'Typ B erkennt zusätzlich glatte Gleichfehlerströme, wie sie z. B. hinter ' +
+      'Wechselrichtern oder in Ladeeinrichtungen entstehen können. Ein Typ A kann ' +
+      'durch solche Ströme „erblinden“.',
   },
-
   'ls-cross-section': {
-    title: 'Leitungsschutzschalter & Leitungsquerschnitt',
+    title: 'Leitungsschutzschalter & Querschnitt',
     body:
-      'Der LS schützt die Leitung vor Überlast. Sein Nennstrom muss zum Querschnitt ' +
-      'passen: zu groß gewählt, überhitzt die Leitung, bevor er auslöst; zu klein ' +
-      'gewählt, löst er schon im Normalbetrieb aus. Faustwerte (vereinfacht): ' +
-      '1,5 mm² → bis 16 A, 2,5 mm² → bis 20/25 A, 6 mm² → bis 32 A.',
-    example:
-      'Endstromkreis mit 1,5 mm² (+ZS2-F6): B 16 A. Wallbox-/WR-Zweig mit 2,5 mm²: K 20 A.',
+      'Der LS schützt die Leitung vor Überlast und Kurzschluss. Sein Nennstrom muss zum ' +
+      'Querschnitt und zur Verlegeart passen. Faustwerte (vereinfacht): 1,5 mm² → 16 A, ' +
+      '2,5 mm² → 20/25 A, 6 mm² → 32 A.',
   },
-
   'ls-characteristic': {
-    title: 'Auslösecharakteristik B / K / E',
+    title: 'Auslösecharakteristik B / C / K',
     body:
-      'Die Charakteristik beschreibt, wie schnell der LS bei Kurzschluss magnetisch ' +
-      'auslöst. B löst früh aus (typische Endstromkreise), K/C erlauben höhere ' +
-      'Einschaltströme (Motoren, Wechselrichter, induktive Lasten). Es geht NICHT um ' +
-      '„stärker“, sondern um das Einschaltverhalten der Last.',
-    example: 'Endstromkreise: B 16 A. Wechselrichter-/Wallbox-Abgang: K 20 A.',
+      'Die Charakteristik beschreibt, wie schnell der Schalter bei Kurzschluss magnetisch ' +
+      'auslöst. B für typische Endstromkreise, C/K für Lasten mit hohen Einschaltströmen ' +
+      '(Motoren, Wechselrichter, induktive Lasten).',
   },
-
-  kammschiene: {
-    title: 'Kammschiene (Sammelschiene)',
-    body:
-      'Die Kammschiene verteilt eine Phase (oder mehrere) sauber auf mehrere ' +
-      'nebeneinander liegende LS. Sie spart Einzelverdrahtung und sorgt für einen ' +
-      'übersichtlichen, normgerechten Aufbau der Endstromkreise.',
-    example: 'Hier speist +ZS2-F5 (RCD Typ A) über die Kammschiene die LS +ZS2-F6…F9.',
-  },
-
-  'fault-trip': {
-    title: 'Warum „rot“ nicht sofort echt ist',
-    body:
-      'Zur Veranschaulichung färbt sich eine überlastete Leitung hier sofort rot. In ' +
-      'Wirklichkeit folgt ein LS einer Zeit-Strom-Kennlinie: bei leichter Überlast löst ' +
-      'er thermisch verzögert aus, bei Kurzschluss magnetisch sehr schnell. Das ' +
-      'Sofort-Feedback ist also eine bewusste Vereinfachung dieses Trainers.',
-    example: 'Ein 16-A-LS trägt kurzfristig mehr als 16 A – er löst nicht in derselben Sekunde aus.',
-  },
-
   'sg-ready': {
-    title: 'SG-Ready-Schütz – die „Ampel“ der Wärmepumpe',
+    title: 'Steuerung / SG-Ready',
     body:
-      'SG-Ready („Smart Grid Ready“) ist keine Software und kein Bedienfeld an der ' +
-      'Wärmepumpe, sondern eine Schnittstelle: zwei potentialfreie Schaltkontakte an ' +
-      'zwei Klemmen der WP. Das Schaltglied im Schrank legt diese Kontakte auf zu oder ' +
-      'auf – die Kombination beider Kontakte ist das Steuersignal. Entscheiden, was ' +
-      'daraus folgt (mehr heizen, normal weiterlaufen, Leistung zurücknehmen), tut der ' +
-      'Regler der Wärmepumpe selbst. Der Schrank gibt also die Anforderung vor, nicht ' +
-      'den Betrieb. Deshalb muss die WP schaltbar angebunden sein: fest verdrahtet ' +
-      'kommt das Lastmanagement gar nicht erst an diese Kontakte heran.',
-    example:
-      'Hier: +ZS2-Q1. Die Kette lautet immer: Netzsituation → Lastmanagement → ' +
-      'Schaltsignal → SG-Ready-Kontakte → WP-Regler → Betriebsverhalten. Die „Ampel“ ' +
-      'unten zeigt den mittleren Teil dieser Kette.',
-  },
-
-  'energy-meter': {
-    title: 'Zähler & Energy Meter (fürs Lastmanagement)',
-    body:
-      'Der Zähler erfasst die Energie; das Energy Meter misst zusätzlich den aktuellen ' +
-      'Leistungsfluss am Hausanschluss. Diese Messwerte braucht das Lastmanagement, um ' +
-      'zu entscheiden, wann die „Ampel" der Wärmepumpe auf Freigabe oder Sperre geht.',
-    example: 'Hier: +ZS2-P1 (Zähler) und +ZS2-J1 (Energy Meter) – fest im Zählerfeld.',
-  },
-
-  speicherheizung: {
-    title: 'Speicher-/Zusatzheizung',
-    body:
-      'Die Speicherheizung lädt einen Wärmespeicher. Genau er macht das Lastmanagement ' +
-      'möglich: Wird die WP bei PV-Überschuss freigegeben, „lädt" sie Wärme vor, die die ' +
-      'Abendspitze überbrückt, wenn die Ampel auf Sperre steht.',
-    example: 'Hier: +ZS2-X3, abgesichert mit einem eigenen Leitungsschutzschalter.',
-  },
-
-  load: {
-    title: 'Verbraucher / Abgang',
-    body:
-      'Das Ziel jedes Stromkreises: Wallbox, Steckdosen (Medienfeld), Beleuchtung oder ' +
-      'andere Abgänge. Jeder Verbraucher stellt Anforderungen an Querschnitt, LS und ' +
-      'RCD des zuführenden Stromkreises.',
-    example: 'Hier u. a. Abgang Wallbox, Medienfeld-Steckdose (+ZS2-X2) und weitere Abgänge.',
+      'SG-Ready ist eine Schnittstelle aus zwei potentialfreien Kontakten an der ' +
+      'Wärmepumpe. Ein Relais- oder Steuermodul im Schrank schaltet diese Kontakte ' +
+      'und gibt so Freigabe, Normalbetrieb oder Sperre vor – den Betrieb regelt die WP selbst.',
   },
 };
 

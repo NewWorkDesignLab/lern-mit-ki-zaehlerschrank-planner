@@ -1,138 +1,17 @@
 // ---------------------------------------------------------------------------
-// Fachliches Datenmodell (Single Source of Truth)
-// Spielansicht und Fachansicht werden BEIDE aus diesen Strukturen gerendert.
-// Es gibt keine zwei parallelen Wahrheiten – nur zwei Renderer über einem State.
+// Datenmodell des Zählerschrank-Planers.
+//
+// Drei Bausteine:
+//   - CatalogPart:     ein Bauteil aus der Bibliothek (Hersteller, Breite in TE …)
+//   - CabinetTemplate: ein leerer Schrank (Felder mit Hutschienen / Zählerplatz)
+//   - Project:         das, was der Azubi baut – welche Teile wo sitzen
+//
+// Alles ist reine Datenstruktur: Schränke und Bauteile werden später um echte
+// Sachsen-Energie-Vorlagen und Herstellerdaten ergänzt, ohne Code zu ändern.
 // ---------------------------------------------------------------------------
 
-/** Bauteilart im Zählerschrank. */
-export type ComponentKind =
-  | 'SLS' //   Selektiver Hauptleitungsschutzschalter (plombiert, Netzbetreiber)
-  | 'METER' //   Zähler (EVU)
-  | 'ENERGY_METER' //   Energie Meter / Messeinrichtung
-  | 'USS' //   Überspannungsschutzgerät
-  | 'LS' //   Leitungsschutzschalter
-  | 'RCD' //   Fehlerstromschutzschalter (RCD/FI)
-  | 'CONTACTOR' //   Schütz / SG-Ready-Steuerkontakt (aktives Schalten fürs Lastmanagement)
-  | 'KAMMSCHIENE' //   Sammelschiene für Endstromkreise
-  | 'LOAD'; //   Verbraucher / Abgang (Ziel)
-
-/** Auslösecharakteristik eines Leitungsschutzschalters. */
-export type TripChar = 'B' | 'K' | 'E';
-
-/**
- * RCD-Erkennungstyp. WICHTIG: Kein Stärke-Ranking!
- * Typ A und Typ B erkennen unterschiedliche Fehlerstromarten.
- */
-export type RcdType = 'A' | 'B';
-
-/**
- * Art des Fehlerstroms, den eine Quelle im Fehlerfall erzeugen kann.
- * - 'AC'          : reiner Wechselfehlerstrom
- * - 'pulsating-DC': pulsierender Gleichfehlerstrom (Typ A erkennt das)
- * - 'smooth-DC'   : glatter Gleichfehlerstrom hinter einem Wechselrichter
- *                   -> erfordert Typ B, Typ A würde "erblinden"
- */
-export type FaultCurrentKind = 'AC' | 'pulsating-DC' | 'smooth-DC';
-
-/** Leiter/Kabel mit realem Querschnitt. */
-export interface Conductor {
-  type: 'H07V-K' | 'NYM-J' | 'H07RN-F' | 'H07V2-K';
-  crossSectionMm2: number;
-  cores?: number;
-}
-
-/**
- * Ein konkretes Bauteil aus der Palette, das der Azubi platzieren kann.
- * Enthält alle fachlich relevanten Eigenschaften.
- */
-export interface PaletteItem {
-  id: string;
-  kind: ComponentKind;
-  label: string;
-  /** Nennstrom in Ampere (LS, RCD, SLS). */
-  ratingA?: number;
-  /** Auslösecharakteristik (nur LS/SLS). */
-  tripChar?: TripChar;
-  /** Erkennungstyp (nur RCD). */
-  rcdType?: RcdType;
-  /** Bemessungsdifferenzstrom in mA (nur RCD). */
-  ratedResidualMa?: number;
-  /** Schlüssel für den Infotext (siehe content/infotexts.ts). */
-  infoKey: string;
-}
-
-/**
- * Ein Steckplatz im Schrank (Hutschienen-Platz). Der Azubi zieht ein
- * passendes Bauteil hinein. Der Slot kennt seine fachliche Sollvorgabe.
- */
-export interface Slot {
-  id: string;
-  /** Betriebsmittelkennzeichen aus dem realen Schaltplan, z.B. '+ZS2-F3'. */
-  bmk: string;
-  title: string;
-  /** Welche Bauteilart hier fachlich hingehört. */
-  accepts: ComponentKind;
-  /** Kurzbeschreibung des Zweigs / der Aufgabe. */
-  description: string;
-  infoKey: string;
-
-  // --- Zustand: was liegt aktuell drin? ---
-  /** Fest vorgegeben & unveränderbar (z.B. SLS = Netzbetreiber). */
-  locked?: boolean;
-  /** Bereits ab Werk gestecktes Bauteil (SLS, Zähler ...). */
-  prefilledItemId?: string;
-
-  // --- Sollvorgaben für die Regel-Engine ---
-  /** Fehlerstromart der Quelle hinter diesem RCD-Zweig. */
-  sourceFaultCurrent?: FaultCurrentKind;
-  /** Geforderter RCD-Typ (didaktisch abgeleitet aus sourceFaultCurrent). */
-  requiredRcdType?: RcdType;
-  /** Strombedarf der Last in Ampere (für LS-Dimensionierung). */
-  loadDemandA?: number;
-  /** Verlegter Leiter (bestimmt zulässigen LS-Nennstrom). */
-  conductor?: Conductor;
-  /** Geforderte Auslösecharakteristik (falls relevant). */
-  requiredTripChar?: TripChar;
-  /** Erhöhtes Anlagenrisiko durch Außen-/Dachleitungen -> ÜSS nötig. */
-  requiresUssBecauseExternalWiring?: boolean;
-}
-
-/** Eine logische Gruppe von Slots (ein "Zweig" im Schrank). */
-export interface Branch {
-  id: string;
-  title: string;
-  slots: Slot[];
-}
-
-/**
- * Ein Situations-Szenario für die SG-Ready-„Ampel" (Lastmanagement).
- * Der Azubi entscheidet, ob die Wärmepumpe freigegeben, normal betrieben oder
- * gesperrt/gedrosselt werden soll.
- */
-export type AmpelState = 'FREIGABE' | 'NORMAL' | 'SPERRE';
-
-export interface AmpelSituation {
-  id: string;
-  label: string;
-  detail: string;
-  correct: AmpelState;
-  explanation: string;
-}
-
-/** Optionaler, levelspezifischer Lastmanagement-Teil (aktive „Ampel"-Mechanik). */
-export interface LoadManagement {
-  intro: string;
-  situations: AmpelSituation[];
-}
-
-// ---------------------------------------------------------------------------
-// Optionale fotorealistische Darstellung (Spielansicht).
-// Ein Level MIT `cabinet` wird als Schrankgrafik gerendert, eines OHNE weiterhin
-// als Kartenraster. Die Fachansicht bleibt davon in jedem Fall unberührt.
-// ---------------------------------------------------------------------------
-
-/** Normalisiertes Rechteck (0..1) – relativ zur jeweiligen Grafik. */
-export interface Rect {
+/** Pixel-Rechteck innerhalb eines Bildes. */
+export interface PxRect {
   x: number;
   y: number;
   w: number;
@@ -140,52 +19,90 @@ export interface Rect {
 }
 
 /**
- * Bauteilfoto samt freigestelltem Inhaltsbereich. Die PNGs haben unterschiedlich
- * viel transparenten Rand; `content` beschreibt, wo das Gerät wirklich sitzt,
- * damit alle Geräte auf dieselbe Bauhöhe skaliert werden können.
+ * Bauteilfoto. `crop` beschreibt, wo das Gerät im (oft transparent umrandeten)
+ * Bild wirklich sitzt – nur dieser Bereich wird gezeichnet.
  */
 export interface PartArt {
   src: string;
-  content: Rect;
-  /** Seitenverhältnis des Geräts selbst (Breite / Höhe des Inhalts). */
-  aspect: number;
+  /** Bildgröße in Pixeln. */
+  w: number;
+  h: number;
+  crop: PxRect;
 }
 
-/** Grafische Darstellung eines Levels als bestückbarer Schrank. */
-export interface CabinetArt {
-  /** Hintergrundgrafik des Schranks (mit gezeichneten Platzhaltern). */
-  background: string;
-  /** Seitenverhältnis der Hintergrundgrafik (Breite / Höhe). */
-  aspect: number;
-  /** slot.id -> Platzhalter-Rechteck in der Hintergrundgrafik. */
-  slotRects: Record<string, Rect>;
-  /** paletteItem.id -> Foto. Nicht gelistete Bauteile werden nicht gezeichnet. */
-  parts: Record<string, PartArt>;
-}
+export type PartCategory =
+  | 'sls'
+  | 'zaehler'
+  | 'uss'
+  | 'rcd'
+  | 'fi-ls'
+  | 'ls'
+  | 'steuerung'
+  | 'schalter'
+  | 'klemme';
 
-/** Eine vollständige Level-Definition, rein datengetrieben. */
-export interface LevelDefinition {
+/** Wo ein Bauteil montiert wird: auf der Hutschiene oder auf dem Zählerplatz. */
+export type MountKind = 'rail' | 'meter';
+
+export interface CatalogPart {
   id: string;
-  /** Reihenfolge in der Progression (1 = erstes Level). */
-  order: number;
-  /** Emoji-Kürzel für die Level-Auswahl. */
-  icon: string;
-  title: string;
-  subtitle: string;
-  /** Kurzbeschreibung des Lernfokus (für die Level-Auswahl). */
-  concept: string;
-  /** Rahmenerzählung (Modus B, minimal). */
-  narrative: string;
-  branches: Branch[];
-  palette: PaletteItem[];
-  /** Optional: aktives Lastmanagement (nur für Level mit „Ampel"-Mechanik). */
-  loadManagement?: LoadManagement;
-  /** Optional: fotorealistische Schrankgrafik für die Spielansicht. */
-  cabinet?: CabinetArt;
+  manufacturer: string;
+  category: PartCategory;
+  name: string;
+  articleNo?: string;
+  /** Breite in Teilungseinheiten (1 TE = 17,5 mm). Halbe TE erlaubt. */
+  widthTE: number;
+  mount: MountKind;
+  /** Pole / Anzahl Kippschalter für die generische Zeichnung. */
+  poles?: number;
+  /** Technische Daten zur Anzeige, z. B. { Nennstrom: '16 A' }. */
+  specs: Record<string, string>;
+  art?: PartArt;
+  /** Schlüssel für den Nachschlagetext (content/infotexts.ts). */
+  infoKey?: string;
 }
 
-/** Ansichtsmodus für den Dual-View-Toggle. */
-export type ViewMode = 'game' | 'schematic';
+// --- Schrankvorlagen --------------------------------------------------------
 
-/** Belegung: welches Palette-Item liegt in welchem Slot. */
-export type Placement = Record<string, string | null>;
+export type Zone =
+  | { kind: 'rail'; label: string; te: number }
+  | { kind: 'meter'; label: string }
+  | { kind: 'blank'; label: string; heightMm: number };
+
+export type FieldKind = 'zaehler' | 'verteiler' | 'apz';
+
+export interface CabinetField {
+  kind: FieldKind;
+  name: string;
+  zones: Zone[];
+}
+
+export interface CabinetTemplate {
+  id: string;
+  name: string;
+  description: string;
+  fields: CabinetField[];
+}
+
+// --- Projekt ----------------------------------------------------------------
+
+export interface Placement {
+  uid: string;
+  partId: string;
+  /** Index des Feldes in der Vorlage. */
+  field: number;
+  /** Index der Zone im Feld. */
+  zone: number;
+  /** Linke Kante in TE ab Schienenanfang (0 bei Zählerplatz). */
+  te: number;
+  /** Betriebsmittelkennzeichen, z. B. "-F3". */
+  bmk: string;
+  note?: string;
+}
+
+export interface Project {
+  version: 1;
+  name: string;
+  templateId: string;
+  placements: Placement[];
+}
