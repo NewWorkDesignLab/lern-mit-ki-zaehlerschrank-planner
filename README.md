@@ -43,6 +43,7 @@ npm run build      # Typecheck + Produktions-Build
   Eckdaten (`specs`), Herstellerangaben (`details`, `datasheetUrl`), optional ein Foto (`src/catalog/art.ts`, Gerätebereich in
   Pixeln vermessen). Ohne Foto wird eine generische Gerätegrafik gezeichnet.
   Die enthaltenen Daten sind **Beispieldaten** und mit Datenblättern abzugleichen.
+  Generische Testbauteile (ohne Foto) liegen in `src/catalog/generic.ts`.
 - **Schränke:** `src/catalog/templates.ts` – Felder mit Zonen (Hutschiene mit
   TE-Anzahl, Zählerplatz, freier Raum). Die aktuellen Vorlagen sind
   Platzhalter; die konkreten Sachsen-Energie-Schränke werden hier ergänzt.

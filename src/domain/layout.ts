@@ -115,7 +115,7 @@ export function firstFreeSpot(
 
 /** Nächstes freies BMK für die Kategorie des Bauteils, z. B. "-F4". */
 export function suggestBmk(placements: Placement[], part: CatalogPart): string {
-  const letter = CATEGORY_LETTER[part.category];
+  const letter = part.bmkLetter ?? CATEGORY_LETTER[part.category];
   const re = new RegExp(`^-?${letter}(\\d+)$`);
   let max = 0;
   for (const p of placements) {

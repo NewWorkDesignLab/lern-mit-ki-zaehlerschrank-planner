@@ -9,6 +9,7 @@
 
 import type { CatalogPart, PartCategory } from '../domain/types';
 import { ART } from './art';
+import { GENERIC_PARTS } from './generic';
 
 export const CATEGORY_LABEL: Record<PartCategory, string> = {
   sls: 'SLS (Hauptleitungsschutz)',
@@ -17,8 +18,10 @@ export const CATEGORY_LABEL: Record<PartCategory, string> = {
   rcd: 'FI-Schutzschalter (RCD)',
   'fi-ls': 'FI/LS-Kombination',
   ls: 'Leitungsschutzschalter (LS)',
+  sicherung: 'Schmelzsicherungen',
   steuerung: 'Steuerung / Lastmanagement',
   schalter: 'Schalter / Schütze',
+  sonstiges: 'Versorgung / Sonstiges',
   klemme: 'Klemmen',
 };
 
@@ -30,8 +33,10 @@ export const CATEGORY_ORDER: PartCategory[] = [
   'rcd',
   'fi-ls',
   'ls',
+  'sicherung',
   'steuerung',
   'schalter',
+  'sonstiges',
   'klemme',
 ];
 
@@ -43,8 +48,10 @@ export const CATEGORY_LETTER: Record<PartCategory, string> = {
   rcd: 'F',
   'fi-ls': 'F',
   ls: 'F',
+  sicherung: 'F',
   steuerung: 'K',
   schalter: 'Q',
+  sonstiges: 'E',
   klemme: 'X',
 };
 
@@ -264,6 +271,7 @@ export const CATALOG: CatalogPart[] = [
     specs: { Leiter: 'PE' },
     details: { Anschlussquerschnitt: 'bis 16 mm²' },
   },
+  ...GENERIC_PARTS,
 ];
 
 const BY_ID = new Map(CATALOG.map((p) => [p.id, p]));

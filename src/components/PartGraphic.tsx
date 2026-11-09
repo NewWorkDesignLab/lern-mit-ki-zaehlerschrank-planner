@@ -41,6 +41,7 @@ export function PhotoImage({ art, x, y, w, h }: { art: PartArt; x: number; y: nu
 
 /** Kurzaufschrift für generische Geräte (z. B. "B16", "RCD A"). */
 export function shortLabel(part: CatalogPart): string {
+  if (part.label !== undefined) return part.label;
   const s = part.specs;
   const amps = (s.Nennstrom ?? '').replace(/\s*A$/, '');
   switch (part.category) {
@@ -69,8 +70,10 @@ const ACCENT: Record<string, string> = {
   rcd: '#1565c0',
   'fi-ls': '#1565c0',
   ls: '#c62828',
+  sicherung: '#f9a825',
   steuerung: '#37474f',
   schalter: '#6d4c41',
+  sonstiges: '#78909c',
   klemme: '#546e7a',
   zaehler: '#455a64',
 };
@@ -85,10 +88,20 @@ export function GenericDevice({ part, cx, cy, w }: { part: CatalogPart; cx: numb
 
   if (part.category === 'klemme') {
     const isPe = part.specs.Leiter === 'PE';
+    const isN = part.specs.Leiter === 'N';
     const n = Math.max(1, Math.round(w / 6));
     return (
       <g>
-        <rect x={x} y={cy - 22} width={bw} height={44} rx={2} fill={isPe ? '#cddc39' : '#1e88e5'} stroke="#37474f" strokeWidth={0.6} />
+        <rect
+          x={x}
+          y={cy - 22}
+          width={bw}
+          height={44}
+          rx={2}
+          fill={isPe ? '#cddc39' : isN ? '#1e88e5' : '#9e9e9e'}
+          stroke="#37474f"
+          strokeWidth={0.6}
+        />
         {isPe && <rect x={x} y={cy - 4} width={bw} height={8} fill="#43a047" />}
         {Array.from({ length: n }, (_, i) => (
           <circle key={i} cx={x + ((i + 0.5) * bw) / n} cy={cy - 12} r={2.2} fill="#eceff1" stroke="#37474f" strokeWidth={0.4} />

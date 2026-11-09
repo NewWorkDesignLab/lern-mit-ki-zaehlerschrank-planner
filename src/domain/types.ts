@@ -37,8 +37,10 @@ export type PartCategory =
   | 'rcd'
   | 'fi-ls'
   | 'ls'
+  | 'sicherung'
   | 'steuerung'
   | 'schalter'
+  | 'sonstiges'
   | 'klemme';
 
 /** Wo ein Bauteil montiert wird: auf der Hutschiene oder auf dem Zählerplatz. */
@@ -58,6 +60,10 @@ export interface CatalogPart {
   /** Technische Daten zur Anzeige, z. B. { Nennstrom: '16 A' }. */
   specs: Record<string, string>;
   art?: PartArt;
+  /** Kurzbeschriftung auf der generischen Gerätegrafik (sonst aus den Specs abgeleitet). */
+  label?: string;
+  /** Kennbuchstabe für den BMK-Vorschlag, falls abweichend von der Kategorie (z. B. 'T'). */
+  bmkLetter?: string;
   /** Weitere Herstellerangaben hinter dem i-Knopf, z. B. { Norm: 'DIN EN 60898-1' }. */
   details?: Record<string, string>;
   /** Link zum Hersteller-Datenblatt. */
