@@ -36,11 +36,15 @@ export function Toolbar(props: Props) {
       </div>
 
       <div className="toolbar-project">
+        <span className="crumb-sep" aria-hidden="true">
+          /
+        </span>
         <input
           className="project-name"
           value={project.name}
           onChange={(e) => props.onRename(e.target.value)}
-          placeholder="Projektname, z. B. EFH Musterstraße 12"
+          placeholder="Unbenanntes Projekt"
+          title="Projektname, z. B. EFH Musterstraße 12"
           aria-label="Projektname"
         />
         <select
@@ -59,7 +63,7 @@ export function Toolbar(props: Props) {
 
       <div className="toolbar-actions">
         <button
-          className="btn icon"
+          className="btn icon ghost"
           onClick={props.onUndo}
           disabled={!props.canUndo}
           title="Rückgängig (Strg+Z)"
@@ -68,7 +72,7 @@ export function Toolbar(props: Props) {
           <IconUndo />
         </button>
         <button
-          className="btn icon"
+          className="btn icon ghost"
           onClick={props.onRedo}
           disabled={!props.canRedo}
           title="Wiederholen (Strg+Y)"
@@ -77,18 +81,20 @@ export function Toolbar(props: Props) {
           <IconRedo />
         </button>
         <span className="sep" />
-        <button className="btn" onClick={props.onNew} title="Neues, leeres Projekt">
-          <IconNew />
-          Neu
-        </button>
-        <button className="btn" onClick={() => fileRef.current?.click()} title="Gespeichertes Projekt öffnen">
-          <IconOpen />
-          Öffnen
-        </button>
-        <button className="btn" onClick={props.onSave} title="Projekt als .json-Datei speichern">
-          <IconSave />
-          Speichern
-        </button>
+        <div className="btn-group" role="group" aria-label="Datei">
+          <button className="btn" onClick={props.onNew} title="Neues, leeres Projekt">
+            <IconNew />
+            Neu
+          </button>
+          <button className="btn" onClick={() => fileRef.current?.click()} title="Gespeichertes Projekt öffnen">
+            <IconOpen />
+            Öffnen
+          </button>
+          <button className="btn" onClick={props.onSave} title="Projekt als .json-Datei speichern">
+            <IconSave />
+            Speichern
+          </button>
+        </div>
         <input
           ref={fileRef}
           type="file"
@@ -101,11 +107,16 @@ export function Toolbar(props: Props) {
           }}
         />
         <span className="sep" />
-        <button className="btn" onClick={props.onShare}>
+        <button className="btn" onClick={props.onShare} title="Link und QR-Code zum Projekt anzeigen">
           <IconShare />
           Teilen / QR
         </button>
-        <button className="btn primary" onClick={props.onExportPng} disabled={props.exporting}>
+        <button
+          className="btn primary"
+          onClick={props.onExportPng}
+          disabled={props.exporting}
+          title="Schrankansicht als PNG-Bild speichern"
+        >
           <IconImage />
           {props.exporting ? 'Exportiere …' : 'Als Bild exportieren'}
         </button>
