@@ -570,37 +570,32 @@ export function App() {
         />
 
         <section className="panel canvas-panel">
-          {armedPartId && (
-            <div className="armed-bar">
-              <span>
-                <b>{getPart(armedPartId)?.name}</b> – auf eine freie Stelle im Schrank klicken.
-              </span>
-              <button className="btn small" onClick={() => setArmedPartId(null)}>
-                Fertig (Esc)
-              </button>
-            </div>
-          )}
-          {selectMode && !armedPartId && (
-            <div className="armed-bar touch-only">
-              <span>
-                <b>Mehrfachauswahl</b> – Bauteile antippen oder über leere Fläche wischen.
-              </span>
-              <button className="btn small" onClick={() => setSelectMode(false)}>
-                Fertig
-              </button>
-            </div>
-          )}
           <div className="canvas-stage">
+            {armedPartId && (
+              // Schwebt über dem Schrank – verschiebt das Layout nicht.
+              <div className="armed-bar" role="status">
+                <span>
+                  <b>{getPart(armedPartId)?.name}</b> – auf eine freie Stelle im Schrank klicken.
+                </span>
+                <button className="btn small" onClick={() => setArmedPartId(null)}>
+                  Fertig (Esc)
+                </button>
+              </div>
+            )}
             {!armedPartId && (
               // Werkzeug nur auf Touch-Geräten (CSS) – ersetzt Strg+Klick und den Maus-Pinsel.
               <button
                 className={`tool-btn touch-only ${selectMode ? 'active' : ''}`}
                 onClick={() => setSelectMode((v) => !v)}
                 aria-pressed={selectMode}
-                title="Mehrere Bauteile antippen oder überwischen"
+                title={
+                  selectMode
+                    ? 'Mehrfachauswahl beenden'
+                    : 'Mehrere Bauteile antippen oder überwischen'
+                }
               >
                 <IconMultiSelect />
-                Mehrfachauswahl
+                {selectMode ? 'Auswahl beenden' : 'Mehrfachauswahl'}
               </button>
             )}
             <TrashZone side="left" ref={trashLeft} active={draggingPlaced} hot={trashHot} />

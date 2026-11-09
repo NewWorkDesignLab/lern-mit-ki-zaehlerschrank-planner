@@ -763,15 +763,60 @@ textarea:focus {
   outline-offset: 2px;
 }
 
+/* Platzier-Hinweis: schwebt oben mittig über dem Schrank, damit nichts verrutscht.
+   Seitlich bleibt Platz für die Papierkorb-Zonen (88px wie .canvas-scroll). */
 .armed-bar {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 14px;
+  gap: 12px;
+  max-width: calc(100% - 176px);
+  padding: 6px 6px 6px 14px;
   font-size: 13px;
-  background: var(--accent-soft);
-  border-bottom: 1px solid rgba(217, 119, 6, 0.3);
+  background: var(--panel);
+  border: 1px solid rgba(217, 119, 6, 0.45);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  animation: armed-in 0.15s ease-out both;
+  /* Klicks gehen durch auf den Schrank – nur der Fertig-Knopf fängt sie ab. */
+  pointer-events: none;
+}
+
+.armed-bar .btn {
+  pointer-events: auto;
+}
+
+.armed-bar > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.armed-bar .btn {
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+@keyframes armed-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .armed-bar {
+    animation: none;
+  }
 }
 
 /* Schwebende Bauteilvorschau am Mauszeiger (Bild zentriert auf dem Cursor). */
