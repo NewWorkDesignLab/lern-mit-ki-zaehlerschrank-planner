@@ -2,7 +2,7 @@
 // Kopfzeile: Projektname, Schrankvorlage, Bearbeiten, Datei, Export.
 // ---------------------------------------------------------------------------
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { TEMPLATES } from '../catalog/templates';
 import type { Project } from '../domain/types';
 import { IconImage, IconNew, IconOpen, IconRedo, IconSave, IconShare, IconUndo } from './Icons';
@@ -26,7 +26,20 @@ interface Props {
 export function Toolbar(props: Props) {
   const { project } = props;
   const fileRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const template = TEMPLATES.find((t) => t.id === project.templateId);
+  const needsName = project.name.trim() === '';
+  // Zähler statt Boolean: jeder Klick startet die Wackel-Animation neu (key-Wechsel).
+  const [nudge, setNudge] = useState(0);
+
+  const handleExport = () => {
+    if (needsName) {
+      nameRef.current?.focus();
+      setNudge((n) => n + 1);
+      return;
+    }
+    props.onExportPng();
+  };
 
   return (
     <header className="toolbar">
@@ -39,14 +52,33 @@ export function Toolbar(props: Props) {
         <span className="crumb-sep" aria-hidden="true">
           /
         </span>
-        <input
-          className="project-name"
-          value={project.name}
-          onChange={(e) => props.onRename(e.target.value)}
-          placeholder="Unbenanntes Projekt"
-          title="Projektname, z. B. EFH Musterstraße 12"
-          aria-label="Projektname"
-        />
+        <div className="project-name-wrap">
+          <input
+            ref={nameRef}
+            className={`project-name ${needsName ? 'needs-name' : ''}`}
+            value={project.name}
+            onChange={(e) => props.onRename(e.target.value)}
+            placeholder="Unbenanntes Projekt"
+            title="Projektname, z. B. EFH Musterstraße 12"
+            aria-label="Projektname"
+            aria-describedby={needsName ? 'name-hint' : undefined}
+          />
+          {needsName && (
+            <div
+              key={nudge}
+              id="name-hint"
+              className={`name-hint ${nudge > 0 ? 'is-nudged' : ''}`}
+              role={nudge > 0 ? 'alert' : undefined}
+            >
+              <strong>Gib deinem Projekt einen Namen</strong>
+              <span>
+                {nudge > 0
+                  ? 'Vor dem Export bitte einen Namen festlegen – er erscheint im Belegungsplan.'
+                  : 'Er erscheint später im Belegungsplan.'}
+              </span>
+            </div>
+          )}
+        </div>
         <select
           value={project.templateId}
           onChange={(e) => props.onTemplate(e.target.value)}
@@ -113,9 +145,9 @@ export function Toolbar(props: Props) {
         </button>
         <button
           className="btn primary"
-          onClick={props.onExportPng}
+          onClick={handleExport}
           disabled={props.exporting}
-          title="Schrankansicht als PNG-Bild speichern"
+          title={needsName ? 'Zuerst einen Projektnamen festlegen' : 'Schrankansicht als PNG-Bild speichern'}
         >
           <IconImage />
           {props.exporting ? 'Exportiere …' : 'Als Bild exportieren'}

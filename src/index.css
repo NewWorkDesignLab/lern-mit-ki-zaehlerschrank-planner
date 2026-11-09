@@ -157,11 +157,100 @@ kbd {
   user-select: none;
 }
 
-/* Projektname als Inline-Titel: Rahmen erst bei Hover/Fokus */
-.toolbar .project-name {
+.project-name-wrap {
+  position: relative;
+  display: flex;
   flex: 1 1 200px;
   min-width: 110px;
   max-width: 300px;
+}
+
+/* Hinweis-Sprechblase unter dem Projektnamen, solange keiner vergeben ist */
+.name-hint {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 13px 10px;
+  border: 1px solid rgba(217, 119, 6, 0.28);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  color: #7c2d12;
+  font-size: 12.5px;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.16);
+  pointer-events: none;
+  animation: hint-in 0.35s ease-out 0.4s both;
+}
+
+.name-hint strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-strong);
+}
+
+/* Pfeil nach oben zum Eingabefeld */
+.name-hint::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 22px;
+  width: 12px;
+  height: 12px;
+  background: #fff7ed;
+  border-top: 1px solid rgba(217, 119, 6, 0.28);
+  border-left: 1px solid rgba(217, 119, 6, 0.28);
+  border-top-left-radius: 3px;
+  transform: rotate(45deg);
+}
+
+.name-hint.is-nudged {
+  animation: hint-nudge 0.45s ease-in-out both;
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hint-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-5px);
+  }
+  40%,
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .name-hint,
+  .name-hint.is-nudged {
+    animation: none;
+  }
+}
+
+/* Projektname als Inline-Titel: Rahmen erst bei Hover/Fokus */
+.toolbar .project-name {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   padding: 0 8px;
   font-size: 15px;
   font-weight: 600;
@@ -177,6 +266,12 @@ kbd {
 
 .toolbar .project-name:focus {
   background: var(--bg-0);
+}
+
+/* Leerer Name: dezente orange Kontur als Ankerpunkt für die Sprechblase */
+.toolbar .project-name.needs-name:not(:focus) {
+  border-color: rgba(217, 119, 6, 0.35);
+  background: rgba(255, 247, 237, 0.6);
 }
 
 .project-name::placeholder {
