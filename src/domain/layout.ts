@@ -186,6 +186,23 @@ export function planGroupMove(
   return { moves, valid: group.length > 0 && invalidUids.length === 0, invalidUids, hasMeter };
 }
 
+/** Lesereihenfolge im Schrank: Feld für Feld, darin Zone von oben nach unten, darin von links nach rechts. */
+export function inReadingOrder(placements: Placement[]): Placement[] {
+  return [...placements].sort((a, b) => a.field - b.field || a.zone - b.zone || a.te - b.te);
+}
+
+/**
+ * Alle Bauteile zwischen `fromUid` und `toUid` (beide eingeschlossen) in
+ * Lesereihenfolge – wie Shift+Klick im Datei-Explorer. Richtung egal.
+ */
+export function rangeBetween(placements: Placement[], fromUid: string, toUid: string): string[] {
+  const ordered = inReadingOrder(placements);
+  const i = ordered.findIndex((p) => p.uid === fromUid);
+  const j = ordered.findIndex((p) => p.uid === toUid);
+  if (i < 0 || j < 0) return j >= 0 ? [toUid] : [];
+  return ordered.slice(Math.min(i, j), Math.max(i, j) + 1).map((p) => p.uid);
+}
+
 /** Nächstes freies BMK für die Kategorie des Bauteils, z. B. "-F4". */
 export function suggestBmk(placements: Placement[], part: CatalogPart): string {
   const letter = part.bmkLetter ?? CATEGORY_LETTER[part.category];

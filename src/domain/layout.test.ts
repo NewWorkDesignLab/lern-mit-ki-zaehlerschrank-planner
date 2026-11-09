@@ -6,6 +6,7 @@ import {
   nearestFreeTe,
   normalizeProject,
   planGroupMove,
+  rangeBetween,
   retainFitting,
   suggestBmk,
 } from './layout';
@@ -190,5 +191,46 @@ describe('planGroupMove', () => {
     const plan = planGroupMove(tpl, placed, ['m', 'a'], { dField: 0, dRail: 0, dTe: 1 });
     expect(plan.valid).toBe(false);
     expect(plan.hasMeter).toBe(true);
+  });
+});
+
+describe('rangeBetween', () => {
+  const p = (uid: string, field: number, zone: number, te: number): Placement => ({
+    uid,
+    partId: ls1.id,
+    field,
+    zone,
+    te,
+    bmk: '',
+  });
+  // Absichtlich ungeordnet gespeichert
+  const placed = [
+    p('r2b', 1, 1, 5),
+    p('r1a', 1, 0, 0),
+    p('r1c', 1, 0, 8),
+    p('r1b', 1, 0, 3),
+    p('r2a', 1, 1, 0),
+    p('f0', 0, 0, 2),
+  ];
+
+  it('wählt alle Bauteile einer Reihe zwischen links und rechts', () => {
+    expect(rangeBetween(placed, 'r1a', 'r1c')).toEqual(['r1a', 'r1b', 'r1c']);
+  });
+
+  it('funktioniert genauso von rechts nach links', () => {
+    expect(rangeBetween(placed, 'r1c', 'r1a')).toEqual(['r1a', 'r1b', 'r1c']);
+  });
+
+  it('läuft über Reihen hinweg in Lesereihenfolge', () => {
+    expect(rangeBetween(placed, 'r1b', 'r2a')).toEqual(['r1b', 'r1c', 'r2a']);
+  });
+
+  it('läuft über Felder hinweg', () => {
+    expect(rangeBetween(placed, 'f0', 'r1b')).toEqual(['f0', 'r1a', 'r1b']);
+  });
+
+  it('liefert nur das Ziel, wenn der Anker fehlt', () => {
+    expect(rangeBetween(placed, 'weg', 'r2b')).toEqual(['r2b']);
+    expect(rangeBetween(placed, 'r1a', 'r1a')).toEqual(['r1a']);
   });
 });

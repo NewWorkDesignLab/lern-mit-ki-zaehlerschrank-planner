@@ -4,13 +4,14 @@ import { getPart } from './catalog/parts';
 import { TEMPLATES, getTemplate } from './catalog/templates';
 import { CabinetCanvas } from './components/CabinetCanvas';
 import type { Preview } from './components/CabinetCanvas';
+import { IconMultiSelect } from './components/Icons';
 import { Library } from './components/Library';
 import { PartThumb } from './components/PartGraphic';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { ShareDialog } from './components/ShareDialog';
 import { Toolbar } from './components/Toolbar';
 import { computeGeometry } from './domain/geometry';
-import { canPlace, firstFreeSpot, planGroupMove, railZones, retainFitting } from './domain/layout';
+import { canPlace, firstFreeSpot, planGroupMove, railZones, rangeBetween, retainFitting } from './domain/layout';
 import type { GroupPlan } from './domain/layout';
 import { computeTarget, wishAt } from './domain/target';
 import { readProjectFile, saveProjectFile } from './export/file';
@@ -27,6 +28,8 @@ interface Pointer {
   uid?: string;
   /** Gesetzt, wenn eine Mehrfachauswahl als Block bewegt wird (uid = gegriffenes Teil). */
   group?: string[];
+  /** Tippen ohne Ziehen wählt das Teil ab (Auswahl-Modus auf Touch). */
+  tapToggle?: boolean;
   startX: number;
   startY: number;
   x: number;
@@ -49,6 +52,7 @@ interface Brush {
 const BRUSH_STEP = 6;
 
 const isMod = (e: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) => e.ctrlKey || e.metaKey || e.shiftKey;
+const isCtrl = (e: { ctrlKey: boolean; metaKey: boolean }) => e.ctrlKey || e.metaKey;
 
 export function App() {
   const { project, canUndo, canRedo, dispatch } = useProject();
@@ -133,9 +137,69 @@ export function App() {
   );
 
   // --- Ziehen (Bibliothek -> Schrank, und Verschieben im Schrank) ----------------
-  const beginPointer = (partId: string, e: ReactPointerEvent, uid?: string, group?: string[]) => {
+  const beginPointer = (
+    partId: string,
+    e: ReactPointerEvent,
+    uid?: string,
+    group?: string[],
+    tapToggle?: boolean,
+  ) => {
     if (e.button !== 0) return;
-    setPointer({ partId, uid, group, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, dragging: false });
+    setPointer({
+      partId,
+      uid,
+      group,
+      tapToggle,
+      startX: e.clientX,
+      startY: e.clientY,
+      x: e.clientX,
+      y: e.clientY,
+      dragging: false,
+    });
+  };
+
+  // --- Auswahl per Klick ---------------------------------------------------------
+  /** Anker für Shift+Klick (zuletzt einzeln angeklicktes Bauteil). */
+  const anchorRef = useRef<string | null>(null);
+  /** Auswahl-Modus für Touch: Tippen wählt hinzu/ab, Wischen über leere Fläche pinselt. */
+  const [selectMode, setSelectMode] = useState(false);
+
+  const handlePartPointerDown = (uid: string, e: ReactPointerEvent) => {
+    e.stopPropagation();
+    const p = project.placements.find((x) => x.uid === uid);
+    if (!p) return;
+    setArmedPartId(null);
+
+    if (e.shiftKey) {
+      // Bereich wie im Datei-Explorer; mit Strg zusätzlich zur bestehenden Auswahl.
+      const anchor = anchorRef.current ?? uid;
+      anchorRef.current = anchor;
+      const range = rangeBetween(project.placements, anchor, uid);
+      setSelectedUids((s) => (isCtrl(e) ? [...new Set([...s, ...range])] : range));
+      return;
+    }
+    if (isCtrl(e)) {
+      anchorRef.current = uid;
+      setSelectedUids((s) => (s.includes(uid) ? s.filter((x) => x !== uid) : [...s, uid]));
+      return;
+    }
+    if (selectMode) {
+      anchorRef.current = uid;
+      if (selectedUids.includes(uid)) {
+        // Gewähltes Teil: Ziehen bewegt die Auswahl, Tippen wählt es ab.
+        beginPointer(p.partId, e, uid, selectedUids, true);
+      } else {
+        setSelectedUids((s) => [...s, uid]);
+      }
+      return;
+    }
+    anchorRef.current = uid;
+    if (selectedUids.length > 1 && selectedUids.includes(uid)) {
+      beginPointer(p.partId, e, uid, selectedUids);
+      return;
+    }
+    setSelectedUids([uid]);
+    beginPointer(p.partId, e, uid);
   };
 
   /**
@@ -180,7 +244,9 @@ export function App() {
       setPointer(null);
       if (!p.dragging) {
         // Klick (ohne Ziehen) auf ein Teil der Mehrfachauswahl: nur dieses behalten.
-        if (p.group && p.uid) setSelectedUids([p.uid]);
+        const uid = p.uid;
+        if (p.tapToggle && uid) setSelectedUids((s) => s.filter((x) => x !== uid));
+        else if (p.group && uid) setSelectedUids([uid]);
         return;
       }
       suppressClick.current = true;
@@ -234,12 +300,14 @@ export function App() {
   // --- Auswahl-Pinsel ------------------------------------------------------------
   const beginBrush = (e: ReactPointerEvent) => {
     if (e.button !== 0 || armedPartId) return;
+    // Auf Touch scrollt Wischen den Schrank – gepinselt wird nur im Auswahl-Modus.
+    if (e.pointerType === 'touch' && !selectMode) return;
     brushRef.current = {
       startX: e.clientX,
       startY: e.clientY,
       last: { x: e.clientX, y: e.clientY },
       active: false,
-      base: isMod(e) ? selectedUids : [],
+      base: isMod(e) || selectMode ? selectedUids : [],
       hits: new Set(),
     };
     setBrushPoints([]);
@@ -338,7 +406,8 @@ export function App() {
   const handleCanvasClick = (clientX: number, clientY: number) => {
     if (suppressClick.current) return;
     if (!armedPartId) {
-      setSelectedUids([]);
+      // Im Auswahl-Modus hebt ein versehentliches Tippen daneben die Auswahl nicht auf.
+      if (!selectMode) setSelectedUids([]);
       return;
     }
     const hit = targetAt(armedPartId, clientX, clientY);
@@ -433,6 +502,7 @@ export function App() {
       } else if (e.key === 'Escape') {
         setArmedPartId(null);
         setSelectedUids([]);
+        setSelectMode(false);
       } else if (selectedUids.length > 0 && (e.key === 'Delete' || e.key === 'Backspace')) {
         e.preventDefault();
         if (selected) remove(selected.uid);
@@ -510,7 +580,29 @@ export function App() {
               </button>
             </div>
           )}
+          {selectMode && !armedPartId && (
+            <div className="armed-bar touch-only">
+              <span>
+                <b>Mehrfachauswahl</b> – Bauteile antippen oder über leere Fläche wischen.
+              </span>
+              <button className="btn small" onClick={() => setSelectMode(false)}>
+                Fertig
+              </button>
+            </div>
+          )}
           <div className="canvas-stage">
+            {!armedPartId && (
+              // Werkzeug nur auf Touch-Geräten (CSS) – ersetzt Strg+Klick und den Maus-Pinsel.
+              <button
+                className={`tool-btn touch-only ${selectMode ? 'active' : ''}`}
+                onClick={() => setSelectMode((v) => !v)}
+                aria-pressed={selectMode}
+                title="Mehrere Bauteile antippen oder überwischen"
+              >
+                <IconMultiSelect />
+                Mehrfachauswahl
+              </button>
+            )}
             <TrashZone side="left" ref={trashLeft} active={draggingPlaced} hot={trashHot} />
             <TrashZone side="right" ref={trashRight} active={draggingPlaced} hot={trashHot} />
             <div className="canvas-scroll">
@@ -523,23 +615,8 @@ export function App() {
                 movingUids={movingUids}
                 brushPath={brushPath}
                 armed={!!armedPartId}
-                onPartPointerDown={(uid, e) => {
-                  e.stopPropagation();
-                  const p = project.placements.find((x) => x.uid === uid);
-                  if (!p) return;
-                  setArmedPartId(null);
-                  if (isMod(e)) {
-                    // Strg/Shift+Klick: Bauteil zur Auswahl hinzufügen oder abwählen.
-                    setSelectedUids((s) => (s.includes(uid) ? s.filter((x) => x !== uid) : [...s, uid]));
-                    return;
-                  }
-                  if (selectedUids.length > 1 && selectedUids.includes(uid)) {
-                    beginPointer(p.partId, e, uid, selectedUids);
-                    return;
-                  }
-                  setSelectedUids([uid]);
-                  beginPointer(p.partId, e, uid);
-                }}
+                selectMode={selectMode}
+                onPartPointerDown={handlePartPointerDown}
                 onBackgroundPointerDown={beginBrush}
                 onBackgroundClick={handleCanvasClick}
                 onHover={setHover}

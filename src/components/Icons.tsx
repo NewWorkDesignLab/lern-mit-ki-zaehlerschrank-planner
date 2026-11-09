@@ -81,3 +81,12 @@ export const IconImage = () => (
     <path d="m21 15-5-5L5 21" />
   </Icon>
 );
+
+/** Mehrfachauswahl: gestrichelter Auswahlrahmen mit zwei Häkchen-Feldern. */
+export const IconMultiSelect = () => (
+  <Icon>
+    <rect x="2.5" y="2.5" width="19" height="19" rx="3" strokeDasharray="3 2.6" />
+    <path d="m7 9.5 1.6 1.6L11.5 8" />
+    <path d="m12.5 15.5 1.6 1.6 2.9-3.1" />
+  </Icon>
+);

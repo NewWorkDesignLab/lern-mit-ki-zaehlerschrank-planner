@@ -2,7 +2,7 @@
 // Kopfzeile: Projektname, Schrankvorlage, Bearbeiten, Datei, Export.
 // ---------------------------------------------------------------------------
 
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { TEMPLATES } from '../catalog/templates';
 import type { Project } from '../domain/types';
 import { IconImage, IconNew, IconOpen, IconRedo, IconSave, IconShare, IconUndo } from './Icons';
@@ -32,6 +32,28 @@ export function Toolbar(props: Props) {
   // Zähler statt Boolean: jeder Klick startet die Wackel-Animation neu (key-Wechsel).
   const [nudge, setNudge] = useState(0);
 
+  // Bricht die Kopfzeile um, läge die schwebende Sprechblase über den Buttons der
+  // nächsten Zeile – dann wird sie in den Fluss gesetzt (siehe .toolbar.is-wrapped).
+  const headerRef = useRef<HTMLElement>(null);
+  const projectRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [wrapped, setWrapped] = useState(false);
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const check = () => {
+      const p = projectRef.current?.getBoundingClientRect();
+      const a = actionsRef.current?.getBoundingClientRect();
+      // Höhenunabhängig: Stehen die Aktionen nicht mehr rechts vom Projektbereich,
+      // sind sie in eine neue Zeile gerutscht.
+      if (p && a) setWrapped(a.left < p.right - 1);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(header);
+    return () => ro.disconnect();
+  }, []);
+
   const handleExport = () => {
     if (needsName) {
       nameRef.current?.focus();
@@ -42,13 +64,13 @@ export function Toolbar(props: Props) {
   };
 
   return (
-    <header className="toolbar">
+    <header ref={headerRef} className={`toolbar ${wrapped ? 'is-wrapped' : ''}`}>
       <div className="brand">
         <img className="brand-logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={32} height={32} />
         <span className="brand-name">Zählerschrank-Planer</span>
       </div>
 
-      <div className="toolbar-project">
+      <div ref={projectRef} className="toolbar-project">
         <span className="crumb-sep" aria-hidden="true">
           /
         </span>
@@ -93,7 +115,7 @@ export function Toolbar(props: Props) {
         </select>
       </div>
 
-      <div className="toolbar-actions">
+      <div ref={actionsRef} className="toolbar-actions">
         <button
           className="btn icon ghost"
           onClick={props.onUndo}

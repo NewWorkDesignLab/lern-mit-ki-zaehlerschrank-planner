@@ -33,6 +33,8 @@ interface Props {
   /** Spur des Auswahl-Pinsels in mm-Koordinaten (null = kein Pinsel aktiv). */
   brushPath: { x: number; y: number }[] | null;
   armed: boolean;
+  /** Auswahl-Modus (Touch): Wischen pinselt statt zu scrollen. */
+  selectMode: boolean;
   onPartPointerDown: (uid: string, e: ReactPointerEvent) => void;
   onBackgroundPointerDown: (e: ReactPointerEvent) => void;
   onBackgroundClick: (clientX: number, clientY: number) => void;
@@ -51,6 +53,7 @@ export function CabinetCanvas({
   movingUids,
   brushPath,
   armed,
+  selectMode,
   onPartPointerDown,
   onBackgroundPointerDown,
   onBackgroundClick,
@@ -82,7 +85,7 @@ export function CabinetCanvas({
   return (
     <svg
       ref={svgRef}
-      className={`cabinet-svg ${armed ? 'armed' : ''} ${brushPath ? 'brushing' : ''}`}
+      className={`cabinet-svg ${armed ? 'armed' : ''} ${brushPath ? 'brushing' : ''} ${selectMode ? 'select-mode' : ''}`}
       viewBox={`0 0 ${geo.width} ${geo.height}`}
       xmlns="http://www.w3.org/2000/svg"
       onPointerDown={onBackgroundPointerDown}
