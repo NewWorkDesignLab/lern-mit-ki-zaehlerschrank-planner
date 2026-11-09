@@ -113,6 +113,79 @@ export function firstFreeSpot(
   return null;
 }
 
+// --- Mehrfachauswahl ----------------------------------------------------------
+
+/** Zone-Indizes der Hutschienen eines Feldes, von oben nach unten. */
+export function railZones(template: CabinetTemplate, field: number): number[] {
+  const zones = template.fields[field]?.zones ?? [];
+  return zones.flatMap((z, i) => (z.kind === 'rail' ? [i] : []));
+}
+
+/** Versatz einer Gruppe: Felder nach rechts, Schienen nach unten (je Feld gezählt), TE. */
+export interface GroupOffset {
+  dField: number;
+  dRail: number;
+  dTe: number;
+}
+
+export interface GroupMove {
+  uid: string;
+  field: number;
+  zone: number;
+  te: number;
+}
+
+export interface GroupPlan {
+  moves: GroupMove[];
+  valid: boolean;
+  /** Bauteile, die am Ziel nicht passen (für rote Vorschau). */
+  invalidUids: string[];
+  /** Gruppe enthält einen Zähler – nur einzeln verschiebbar. */
+  hasMeter: boolean;
+}
+
+/**
+ * Verschiebt alle `uids` als Block um denselben Versatz – Abstände bleiben gleich.
+ * Gültig nur, wenn jedes Bauteil am Ziel passt (gegen die übrigen Bauteile
+ * und gegen die bereits geplanten Positionen der Gruppe).
+ */
+export function planGroupMove(
+  template: CabinetTemplate,
+  placements: Placement[],
+  uids: string[],
+  offset: GroupOffset,
+): GroupPlan {
+  const set = new Set(uids);
+  const group = placements.filter((p) => set.has(p.uid));
+  const placed: Placement[] = placements.filter((p) => !set.has(p.uid));
+  const moves: GroupMove[] = [];
+  const invalidUids: string[] = [];
+  let hasMeter = false;
+
+  for (const p of group) {
+    const part = getPart(p.partId);
+    const railIdx = railZones(template, p.field).indexOf(p.zone);
+    if (!part || railIdx < 0) {
+      hasMeter = hasMeter || part?.mount === 'meter';
+      invalidUids.push(p.uid);
+      moves.push({ uid: p.uid, field: p.field, zone: p.zone, te: p.te });
+      continue;
+    }
+    const field = p.field + offset.dField;
+    const zone = railZones(template, field)[railIdx + offset.dRail] ?? -1;
+    const te = snapTe(p.te + offset.dTe);
+    const move = { uid: p.uid, field, zone, te };
+    moves.push(move);
+    if (canPlace(template, placed, part, field, zone, te)) {
+      placed.push({ ...p, ...move });
+    } else {
+      invalidUids.push(p.uid);
+    }
+  }
+
+  return { moves, valid: group.length > 0 && invalidUids.length === 0, invalidUids, hasMeter };
+}
+
 /** Nächstes freies BMK für die Kategorie des Bauteils, z. B. "-F4". */
 export function suggestBmk(placements: Placement[], part: CatalogPart): string {
   const letter = part.bmkLetter ?? CATEGORY_LETTER[part.category];

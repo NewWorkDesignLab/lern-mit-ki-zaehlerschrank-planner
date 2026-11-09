@@ -10,8 +10,9 @@ import { PropertiesPanel } from './components/PropertiesPanel';
 import { ShareDialog } from './components/ShareDialog';
 import { Toolbar } from './components/Toolbar';
 import { computeGeometry } from './domain/geometry';
-import { canPlace, firstFreeSpot, retainFitting } from './domain/layout';
-import { computeTarget } from './domain/target';
+import { canPlace, firstFreeSpot, planGroupMove, railZones, retainFitting } from './domain/layout';
+import type { GroupPlan } from './domain/layout';
+import { computeTarget, wishAt } from './domain/target';
 import { readProjectFile, saveProjectFile } from './export/file';
 import { exportPng } from './export/png';
 import { HASH_PREFIX, decodeProject } from './export/share';
@@ -24,6 +25,8 @@ interface Pointer {
   partId: string;
   /** Gesetzt, wenn ein bereits platziertes Bauteil bewegt wird. */
   uid?: string;
+  /** Gesetzt, wenn eine Mehrfachauswahl als Block bewegt wird (uid = gegriffenes Teil). */
+  group?: string[];
   startX: number;
   startY: number;
   x: number;
@@ -31,13 +34,29 @@ interface Pointer {
   dragging: boolean;
 }
 
+/** Auswahl-Pinsel: Ziehen über leere Fläche wählt alle überfahrenen Bauteile. */
+interface Brush {
+  startX: number;
+  startY: number;
+  last: { x: number; y: number };
+  active: boolean;
+  /** Auswahl vor dem Pinselstrich (bei Strg/Shift wird ergänzt, sonst ersetzt). */
+  base: string[];
+  hits: Set<string>;
+}
+
+/** Abstand (px) der Prüfpunkte zwischen zwei Mauspositionen beim Pinseln. */
+const BRUSH_STEP = 6;
+
+const isMod = (e: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) => e.ctrlKey || e.metaKey || e.shiftKey;
+
 export function App() {
   const { project, canUndo, canRedo, dispatch } = useProject();
   const template = getTemplate(project.templateId) ?? TEMPLATES[0];
   const geo = useMemo(() => computeGeometry(template), [template]);
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  const [selectedRaw, setSelectedUids] = useState<string[]>([]);
   const [armedPartId, setArmedPartId] = useState<string | null>(null);
   const [pointer, setPointer] = useState<Pointer | null>(null);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
@@ -56,7 +75,20 @@ export function App() {
     });
   }, []);
 
-  const selected = project.placements.find((p) => p.uid === selectedUid) ?? null;
+  // Nur existierende Bauteile zählen (z. B. nach Rückgängig).
+  const selectedUids = useMemo(
+    () => selectedRaw.filter((uid) => project.placements.some((p) => p.uid === uid)),
+    [selectedRaw, project.placements],
+  );
+  const selectedList = useMemo(
+    () => project.placements.filter((p) => selectedUids.includes(p.uid)),
+    [project.placements, selectedUids],
+  );
+  /** Genau ein gewähltes Bauteil (Eigenschaften, Duplizieren, Pfeiltasten). */
+  const selected = selectedList.length === 1 ? selectedList[0] : null;
+
+  const [brushPoints, setBrushPoints] = useState<{ x: number; y: number }[] | null>(null);
+  const brushRef = useRef<Brush | null>(null);
 
   const notify = useCallback((msg: string) => setToast(msg), []);
   useEffect(() => {
@@ -101,10 +133,38 @@ export function App() {
   );
 
   // --- Ziehen (Bibliothek -> Schrank, und Verschieben im Schrank) ----------------
-  const beginPointer = (partId: string, e: ReactPointerEvent, uid?: string) => {
+  const beginPointer = (partId: string, e: ReactPointerEvent, uid?: string, group?: string[]) => {
     if (e.button !== 0) return;
-    setPointer({ partId, uid, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, dragging: false });
+    setPointer({ partId, uid, group, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, dragging: false });
   };
+
+  /**
+   * Plan für das Verschieben einer Gruppe: Versatz = Unterschied der Wunschstellen
+   * zwischen Start- und aktueller Mausposition (so bleibt der Griffpunkt erhalten).
+   */
+  const groupPlanAt = useCallback(
+    (p: Pointer, clientX: number, clientY: number): GroupPlan | null => {
+      const anchor = p.uid ? project.placements.find((x) => x.uid === p.uid) : undefined;
+      const part = anchor && getPart(anchor.partId);
+      const from = toSvg(p.startX, p.startY);
+      const to = toSvg(clientX, clientY);
+      if (!p.group || !anchor || !part || !from || !to) return null;
+      const a = wishAt(geo, part, from.x, from.y);
+      const b = wishAt(geo, part, to.x, to.y);
+      if (!a || !b || a.kind !== 'rail' || b.kind !== 'rail') {
+        // Gruppen mit Zähler trotzdem melden, damit der Hinweis kommt.
+        const plan = planGroupMove(template, project.placements, p.group, { dField: 0, dRail: 0, dTe: 0 });
+        return plan.hasMeter ? plan : null;
+      }
+      const offset = {
+        dField: b.field - a.field,
+        dRail: railZones(template, b.field).indexOf(b.zone) - railZones(template, a.field).indexOf(a.zone),
+        dTe: b.te - a.te,
+      };
+      return planGroupMove(template, project.placements, p.group, offset);
+    },
+    [project.placements, toSvg, geo, template],
+  );
 
   useEffect(() => {
     if (!pointer) return;
@@ -118,12 +178,31 @@ export function App() {
     const up = (e: PointerEvent) => {
       const p = pointer;
       setPointer(null);
-      if (!p.dragging) return;
+      if (!p.dragging) {
+        // Klick (ohne Ziehen) auf ein Teil der Mehrfachauswahl: nur dieses behalten.
+        if (p.group && p.uid) setSelectedUids([p.uid]);
+        return;
+      }
       suppressClick.current = true;
       setTimeout(() => (suppressClick.current = false), 0);
+      if (p.group) {
+        if (overTrash(e.clientX, e.clientY)) {
+          dispatch({ type: 'REMOVE_MANY', uids: p.group });
+          setSelectedUids([]);
+          notify(`${p.group.length} Bauteile entfernt – Strg+Z holt sie zurück.`);
+          return;
+        }
+        const plan = groupPlanAt(p, e.clientX, e.clientY);
+        if (!plan) return;
+        if (plan.hasMeter) notify('Zähler bitte einzeln verschieben.');
+        else if (!plan.valid) notify('Dort ist nicht für alle ausgewählten Bauteile Platz.');
+        else dispatch({ type: 'MOVE_MANY', moves: plan.moves });
+        return;
+      }
       if (p.uid && overTrash(e.clientX, e.clientY)) {
-        dispatch({ type: 'REMOVE', uid: p.uid });
-        setSelectedUid((s) => (s === p.uid ? null : s));
+        const removed = p.uid;
+        dispatch({ type: 'REMOVE', uid: removed });
+        setSelectedUids((s) => s.filter((x) => x !== removed));
         notify('Bauteil entfernt – Strg+Z holt es zurück.');
         return;
       }
@@ -138,7 +217,7 @@ export function App() {
       } else {
         const uid = newUid();
         dispatch({ type: 'ADD', uid, partId: p.partId, field, zone, te });
-        setSelectedUid(uid);
+        setSelectedUids([uid]);
       }
     };
     const cancel = () => setPointer(null);
@@ -150,27 +229,116 @@ export function App() {
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', cancel);
     };
-  }, [pointer, targetAt, dispatch, notify, overTrash]);
+  }, [pointer, targetAt, groupPlanAt, dispatch, notify, overTrash]);
 
-  /** Ein platziertes Bauteil wird gerade gezogen (Löschflächen aktiv). */
+  // --- Auswahl-Pinsel ------------------------------------------------------------
+  const beginBrush = (e: ReactPointerEvent) => {
+    if (e.button !== 0 || armedPartId) return;
+    brushRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      last: { x: e.clientX, y: e.clientY },
+      active: false,
+      base: isMod(e) ? selectedUids : [],
+      hits: new Set(),
+    };
+    setBrushPoints([]);
+  };
+
+  const brushing = brushPoints !== null;
+  useEffect(() => {
+    if (!brushing) return;
+    const move = (e: PointerEvent) => {
+      const b = brushRef.current;
+      if (!b) return;
+      if (!b.active && Math.hypot(e.clientX - b.startX, e.clientY - b.startY) <= DRAG_THRESHOLD) return;
+      const first = !b.active;
+      b.active = true;
+      // Zwischenpunkte prüfen, damit schnelle Bewegungen keine Bauteile überspringen.
+      const from = first ? { x: b.startX, y: b.startY } : b.last;
+      const steps = Math.max(1, Math.ceil(Math.hypot(e.clientX - from.x, e.clientY - from.y) / BRUSH_STEP));
+      let found = false;
+      for (let i = 0; i <= steps; i++) {
+        const x = from.x + ((e.clientX - from.x) * i) / steps;
+        const y = from.y + ((e.clientY - from.y) * i) / steps;
+        for (const el of document.elementsFromPoint(x, y)) {
+          const uid = el.closest('[data-uid]')?.getAttribute('data-uid');
+          if (uid && !b.hits.has(uid)) {
+            b.hits.add(uid);
+            found = true;
+          }
+        }
+      }
+      b.last = { x: e.clientX, y: e.clientY };
+      if (found || first) setSelectedUids([...new Set([...b.base, ...b.hits])]);
+      const pts = first ? [{ x: b.startX, y: b.startY }, b.last] : [b.last];
+      setBrushPoints((cur) => [...(cur ?? []), ...pts]);
+    };
+    const up = () => {
+      const b = brushRef.current;
+      brushRef.current = null;
+      setBrushPoints(null);
+      if (b?.active) {
+        // Den Klick nach dem Pinselstrich nicht als "Auswahl aufheben" werten.
+        suppressClick.current = true;
+        setTimeout(() => (suppressClick.current = false), 0);
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, [brushing]);
+
+  const brushPath = useMemo(() => {
+    if (!brushPoints || brushPoints.length < 2) return null;
+    return brushPoints.flatMap((p) => {
+      const s = toSvg(p.x, p.y);
+      return s ? [{ x: s.x, y: s.y }] : [];
+    });
+  }, [brushPoints, toSvg]);
+
+  /** Ein platziertes Bauteil (oder eine Gruppe) wird gerade gezogen (Löschflächen aktiv). */
   const draggingPlaced = !!(pointer?.dragging && pointer.uid);
   const trashHot = draggingPlaced && !!pointer && overTrash(pointer.x, pointer.y);
+  const movingUids = useMemo(
+    () => (pointer?.dragging && pointer.uid ? (pointer.group ?? [pointer.uid]) : []),
+    [pointer],
+  );
 
-  const preview: Preview | null = useMemo(() => {
+  const previews: Preview[] = useMemo(() => {
     if (pointer?.dragging) {
-      if (pointer.uid && overTrash(pointer.x, pointer.y)) return null;
-      return targetAt(pointer.partId, pointer.x, pointer.y, pointer.uid);
+      if (pointer.uid && overTrash(pointer.x, pointer.y)) return [];
+      if (pointer.group) {
+        const plan = groupPlanAt(pointer, pointer.x, pointer.y);
+        if (!plan || plan.hasMeter) return [];
+        return plan.moves.flatMap((m) => {
+          const src = project.placements.find((x) => x.uid === m.uid);
+          const part = src && getPart(src.partId);
+          if (!part || m.zone < 0) return [];
+          return [{ part, target: { field: m.field, zone: m.zone, te: m.te, valid: !plan.invalidUids.includes(m.uid) } }];
+        });
+      }
+      const hit = targetAt(pointer.partId, pointer.x, pointer.y, pointer.uid);
+      return hit ? [hit] : [];
     }
     // Klick-Platzieren: dieselbe Vorschau an der Mausposition.
-    if (armedPartId && hover && !pointer) return targetAt(armedPartId, hover.x, hover.y);
-    return null;
-  }, [pointer, armedPartId, hover, targetAt, overTrash]);
+    if (armedPartId && hover && !pointer) {
+      const hit = targetAt(armedPartId, hover.x, hover.y);
+      return hit ? [hit] : [];
+    }
+    return [];
+  }, [pointer, armedPartId, hover, targetAt, groupPlanAt, overTrash, project.placements]);
 
   // --- Klick-Platzierung mit ausgewähltem Bibliotheksteil ------------------------
   const handleCanvasClick = (clientX: number, clientY: number) => {
     if (suppressClick.current) return;
     if (!armedPartId) {
-      setSelectedUid(null);
+      setSelectedUids([]);
       return;
     }
     const hit = targetAt(armedPartId, clientX, clientY);
@@ -181,16 +349,26 @@ export function App() {
     }
     const uid = newUid();
     dispatch({ type: 'ADD', uid, partId: armedPartId, ...hit.target });
-    setSelectedUid(uid);
+    setSelectedUids([uid]);
   };
 
   // --- Aktionen ------------------------------------------------------------------
   const remove = useCallback(
     (uid: string) => {
       dispatch({ type: 'REMOVE', uid });
-      setSelectedUid((s) => (s === uid ? null : s));
+      setSelectedUids((s) => s.filter((x) => x !== uid));
     },
     [dispatch],
+  );
+
+  const removeMany = useCallback(
+    (uids: string[]) => {
+      if (uids.length === 0) return;
+      dispatch({ type: 'REMOVE_MANY', uids });
+      setSelectedUids([]);
+      if (uids.length > 1) notify(`${uids.length} Bauteile entfernt – Strg+Z holt sie zurück.`);
+    },
+    [dispatch, notify],
   );
 
   const duplicate = (uid: string) => {
@@ -208,7 +386,7 @@ export function App() {
     }
     const newId = newUid();
     dispatch({ type: 'ADD', uid: newId, partId: part.id, ...spot });
-    setSelectedUid(newId);
+    setSelectedUids([newId]);
   };
 
   const changeTemplate = (templateId: string) => {
@@ -222,7 +400,7 @@ export function App() {
       return;
     }
     dispatch({ type: 'SET_TEMPLATE', templateId });
-    setSelectedUid(null);
+    setSelectedUids([]);
   };
 
   const handleExport = async () => {
@@ -249,12 +427,23 @@ export function App() {
       } else if (mod && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         dispatch({ type: 'REDO' });
+      } else if (mod && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setSelectedUids(project.placements.map((p) => p.uid));
       } else if (e.key === 'Escape') {
         setArmedPartId(null);
-        setSelectedUid(null);
-      } else if (selected && (e.key === 'Delete' || e.key === 'Backspace')) {
+        setSelectedUids([]);
+      } else if (selectedUids.length > 0 && (e.key === 'Delete' || e.key === 'Backspace')) {
         e.preventDefault();
-        remove(selected.uid);
+        if (selected) remove(selected.uid);
+        else removeMany(selectedUids);
+      } else if (selectedUids.length > 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        const dTe = e.key === 'ArrowLeft' ? -0.5 : 0.5;
+        const plan = planGroupMove(template, project.placements, selectedUids, { dField: 0, dRail: 0, dTe });
+        if (plan.valid) {
+          e.preventDefault();
+          dispatch({ type: 'MOVE_MANY', moves: plan.moves });
+        }
       } else if (selected && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
         const part = getPart(selected.partId);
         const te = selected.te + (e.key === 'ArrowLeft' ? -0.5 : 0.5);
@@ -266,12 +455,12 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dispatch, selected, remove, template, project.placements]);
+  }, [dispatch, selected, selectedUids, remove, removeMany, template, project.placements]);
 
   const dragPart = pointer?.dragging ? getPart(pointer.partId) : undefined;
 
   return (
-    <div className={`app ${pointer?.dragging ? 'is-dragging' : ''}`}>
+    <div className={`app ${pointer?.dragging ? 'is-dragging' : ''} ${brushing ? 'is-brushing' : ''}`}>
       <Toolbar
         project={project}
         canUndo={canUndo}
@@ -284,13 +473,13 @@ export function App() {
         onNew={() => {
           if (project.placements.length && !window.confirm('Neues, leeres Projekt beginnen?')) return;
           dispatch({ type: 'NEW' });
-          setSelectedUid(null);
+          setSelectedUids([]);
         }}
         onSave={() => saveProjectFile(project)}
         onOpen={async (file) => {
           try {
             dispatch({ type: 'LOAD', project: await readProjectFile(file) });
-            setSelectedUid(null);
+            setSelectedUids([]);
             notify(`„${file.name}“ geöffnet.`);
           } catch (e) {
             notify(e instanceof Error ? e.message : 'Datei konnte nicht geöffnet werden.');
@@ -329,18 +518,29 @@ export function App() {
                 svgRef={svgRef}
                 project={project}
                 geo={geo}
-                selectedUid={selectedUid}
-                preview={preview}
-                movingUid={pointer?.dragging ? pointer.uid : undefined}
+                selectedUids={selectedUids}
+                previews={previews}
+                movingUids={movingUids}
+                brushPath={brushPath}
                 armed={!!armedPartId}
                 onPartPointerDown={(uid, e) => {
                   e.stopPropagation();
                   const p = project.placements.find((x) => x.uid === uid);
                   if (!p) return;
-                  setSelectedUid(uid);
                   setArmedPartId(null);
+                  if (isMod(e)) {
+                    // Strg/Shift+Klick: Bauteil zur Auswahl hinzufügen oder abwählen.
+                    setSelectedUids((s) => (s.includes(uid) ? s.filter((x) => x !== uid) : [...s, uid]));
+                    return;
+                  }
+                  if (selectedUids.length > 1 && selectedUids.includes(uid)) {
+                    beginPointer(p.partId, e, uid, selectedUids);
+                    return;
+                  }
+                  setSelectedUids([uid]);
                   beginPointer(p.partId, e, uid);
                 }}
+                onBackgroundPointerDown={beginBrush}
                 onBackgroundClick={handleCanvasClick}
                 onHover={setHover}
                 onDuplicate={duplicate}
@@ -354,17 +554,25 @@ export function App() {
           project={project}
           template={template}
           selected={selected}
+          selection={selectedList}
           onUpdate={(uid, patch) => dispatch({ type: 'UPDATE_PLACEMENT', uid, patch })}
+          onRemoveMany={removeMany}
         />
       </main>
 
-      {dragPart && pointer && !preview && (
+      {dragPart && pointer && previews.length === 0 && (
         // Frei schwebender Geist am Mauszeiger, solange das Teil nirgends einrastet.
         <div className={`drag-ghost ${trashHot ? 'delete' : ''}`} style={{ left: pointer.x, top: pointer.y }}>
           <span className="drag-ghost-part">
             <PartThumb part={dragPart} size={84} />
           </span>
-          <span className="drag-ghost-label">{trashHot ? `${dragPart.name} entfernen` : dragPart.name}</span>
+          <span className="drag-ghost-label">
+            {pointer.group
+              ? `${pointer.group.length} Bauteile${trashHot ? ' entfernen' : ''}`
+              : trashHot
+                ? `${dragPart.name} entfernen`
+                : dragPart.name}
+          </span>
         </div>
       )}
 

@@ -14,10 +14,13 @@ interface Props {
   project: Project;
   template: CabinetTemplate;
   selected: Placement | null;
+  /** Alle gewählten Bauteile (bei Mehrfachauswahl > 1). */
+  selection: Placement[];
   onUpdate: (uid: string, patch: Partial<Pick<Placement, 'bmk' | 'note'>>) => void;
+  onRemoveMany: (uids: string[]) => void;
 }
 
-export function PropertiesPanel({ project, template, selected, onUpdate }: Props) {
+export function PropertiesPanel({ project, template, selected, selection, onUpdate, onRemoveMany }: Props) {
   const [showInfo, setShowInfo] = useState(false);
   const selectedPart = selected ? getPart(selected.partId) : undefined;
   const hasInfo = !!selectedPart && hasDetails(selectedPart);
@@ -37,7 +40,9 @@ export function PropertiesPanel({ project, template, selected, onUpdate }: Props
             </button>
           )}
         </div>
-        {selected ? (
+        {selection.length > 1 ? (
+          <MultiSelection selection={selection} onRemoveMany={onRemoveMany} />
+        ) : selected ? (
           <SelectedPart
             key={selected.uid}
             placement={selected}
@@ -49,12 +54,42 @@ export function PropertiesPanel({ project, template, selected, onUpdate }: Props
           <p className="muted">
             Ein Bauteil im Schrank anklicken, um BMK, Notiz und technische Daten zu sehen. Verschieben per Ziehen oder mit{' '}
             <kbd>←</kbd>/<kbd>→</kbd>; löschen mit <kbd>Entf</kbd>, dem roten × oder durch Ziehen in eine der roten
-            Flächen, die beim Ziehen neben dem Schrank erscheinen.
+            Flächen, die beim Ziehen neben dem Schrank erscheinen. Mehrere Bauteile wählen: auf leerer Fläche klicken
+            und mit gedrückter Maustaste darüberfahren.
           </p>
         )}
       </section>
       <BillOfMaterials project={project} />
     </aside>
+  );
+}
+
+function MultiSelection({
+  selection,
+  onRemoveMany,
+}: {
+  selection: Placement[];
+  onRemoveMany: Props['onRemoveMany'];
+}) {
+  return (
+    <div className="props-body multi-sel">
+      <b>{selection.length} Bauteile ausgewählt</b>
+      <ul className="multi-sel-list">
+        {selection.map((p) => (
+          <li key={p.uid}>
+            <span className="multi-sel-bmk">{p.bmk || '–'}</span>
+            <span className="multi-sel-name">{getPart(p.partId)?.name ?? p.partId}</span>
+          </li>
+        ))}
+      </ul>
+      <button className="btn danger" onClick={() => onRemoveMany(selection.map((p) => p.uid))}>
+        Auswahl löschen
+      </button>
+      <p className="muted">
+        Gemeinsam verschieben: ein gewähltes Bauteil ziehen oder <kbd>←</kbd>/<kbd>→</kbd>. Mit <kbd>Strg</kbd>+Klick
+        einzelne Bauteile hinzufügen oder abwählen, <kbd>Esc</kbd> hebt die Auswahl auf.
+      </p>
+    </div>
   );
 }
 

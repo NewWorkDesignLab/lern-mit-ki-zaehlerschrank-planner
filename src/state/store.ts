@@ -12,6 +12,8 @@ export type Action =
   | { type: 'ADD'; uid: string; partId: string; field: number; zone: number; te: number }
   | { type: 'MOVE'; uid: string; field: number; zone: number; te: number }
   | { type: 'REMOVE'; uid: string }
+  | { type: 'REMOVE_MANY'; uids: string[] }
+  | { type: 'MOVE_MANY'; moves: { uid: string; field: number; zone: number; te: number }[] }
   | { type: 'UPDATE_PLACEMENT'; uid: string; patch: Partial<Pick<Placement, 'bmk' | 'note'>> }
   | { type: 'RENAME'; name: string }
   | { type: 'SET_TEMPLATE'; templateId: string }
@@ -72,6 +74,29 @@ function apply(p: Project, action: Action): Project {
     }
     case 'REMOVE':
       return { ...p, placements: p.placements.filter((x) => x.uid !== action.uid) };
+    case 'REMOVE_MANY': {
+      const set = new Set(action.uids);
+      const placements = p.placements.filter((x) => !set.has(x.uid));
+      return placements.length === p.placements.length ? p : { ...p, placements };
+    }
+    case 'MOVE_MANY': {
+      const byUid = new Map(action.moves.map((m) => [m.uid, m]));
+      let changed = false;
+      const placements = p.placements.map((x) => {
+        const m = byUid.get(x.uid);
+        if (!m || (m.field === x.field && m.zone === x.zone && m.te === x.te)) return x;
+        changed = true;
+        return { ...x, field: m.field, zone: m.zone, te: m.te };
+      });
+      if (!changed) return p;
+      // Alles oder nichts: jedes bewegte Teil muss am Ziel passen.
+      const ok = placements.every((x) => {
+        if (!byUid.has(x.uid)) return true;
+        const part = getPart(x.partId);
+        return !!part && canPlace(template, placements, part, x.field, x.zone, x.te, x.uid);
+      });
+      return ok ? { ...p, placements } : p;
+    }
     case 'UPDATE_PLACEMENT':
       return {
         ...p,

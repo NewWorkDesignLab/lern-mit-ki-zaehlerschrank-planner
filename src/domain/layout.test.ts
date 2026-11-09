@@ -5,6 +5,7 @@ import {
   firstFreeSpot,
   nearestFreeTe,
   normalizeProject,
+  planGroupMove,
   retainFitting,
   suggestBmk,
 } from './layout';
@@ -133,5 +134,61 @@ describe('Link-Serialisierung', () => {
     expect(back.placements.map(({ uid: _u, ...rest }) => rest)).toEqual(
       project.placements.map(({ uid: _u, ...rest }) => rest),
     );
+  });
+});
+
+describe('planGroupMove', () => {
+  const row = (uid: string, partId: string, zone: number, te: number): Placement => ({
+    uid,
+    partId,
+    field: 1,
+    zone,
+    te,
+    bmk: '',
+  });
+
+  it('verschiebt die Gruppe mit gleichen Abständen', () => {
+    const placed = [row('a', ls1.id, 0, 0), row('b', ls1.id, 0, 3), row('c', rcd.id, 1, 0)];
+    const plan = planGroupMove(tpl, placed, ['a', 'b'], { dField: 0, dRail: 2, dTe: 1 });
+    expect(plan.valid).toBe(true);
+    expect(plan.moves).toEqual([
+      { uid: 'a', field: 1, zone: 2, te: 1 },
+      { uid: 'b', field: 1, zone: 2, te: 4 },
+    ]);
+  });
+
+  it('ist ungültig bei Kollision mit einem Bauteil außerhalb der Gruppe', () => {
+    const placed = [row('a', ls1.id, 0, 0), row('c', rcd.id, 1, 0)];
+    const plan = planGroupMove(tpl, placed, ['a'], { dField: 0, dRail: 1, dTe: 2 });
+    expect(plan.valid).toBe(false);
+    expect(plan.invalidUids).toEqual(['a']);
+  });
+
+  it('erlaubt Verschieben innerhalb der eigenen Gruppe (Teile machen sich gegenseitig Platz)', () => {
+    const placed = [row('a', ls1.id, 0, 0), row('b', ls1.id, 0, 1)];
+    expect(planGroupMove(tpl, placed, ['a', 'b'], { dField: 0, dRail: 0, dTe: 1 }).valid).toBe(true);
+  });
+
+  it('ist ungültig über das Schienenende oder die letzte Reihe hinaus', () => {
+    const placed = [row('a', rcd.id, 4, 8)];
+    expect(planGroupMove(tpl, placed, ['a'], { dField: 0, dRail: 0, dTe: 0.5 }).valid).toBe(false);
+    expect(planGroupMove(tpl, placed, ['a'], { dField: 0, dRail: 1, dTe: 0 }).valid).toBe(false);
+  });
+
+  it('wechselt das Feld anhand der Reihennummer', () => {
+    // Feld 1, Reihe 1 -> Feld 0, erste Schiene (Oberer Anschlussraum, Zone 0)
+    const plan = planGroupMove(tpl, [row('a', ls1.id, 0, 2)], ['a'], { dField: -1, dRail: 0, dTe: 0 });
+    expect(plan.valid).toBe(true);
+    expect(plan.moves[0]).toEqual({ uid: 'a', field: 0, zone: 0, te: 2 });
+  });
+
+  it('lässt Gruppen mit Zähler nicht verschieben', () => {
+    const placed: Placement[] = [
+      { uid: 'm', partId: meter.id, field: 0, zone: 1, te: 0, bmk: '' },
+      row('a', ls1.id, 0, 0),
+    ];
+    const plan = planGroupMove(tpl, placed, ['m', 'a'], { dField: 0, dRail: 0, dTe: 1 });
+    expect(plan.valid).toBe(false);
+    expect(plan.hasMeter).toBe(true);
   });
 });

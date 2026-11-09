@@ -26,12 +26,15 @@ interface Props {
   svgRef: RefObject<SVGSVGElement>;
   project: Project;
   geo: CabinetGeo;
-  selectedUid: string | null;
-  preview: Preview | null;
-  /** Bauteil, das gerade gezogen wird (wird halbtransparent gezeichnet). */
-  movingUid?: string;
+  selectedUids: string[];
+  previews: Preview[];
+  /** Bauteile, die gerade gezogen werden (werden halbtransparent gezeichnet). */
+  movingUids: string[];
+  /** Spur des Auswahl-Pinsels in mm-Koordinaten (null = kein Pinsel aktiv). */
+  brushPath: { x: number; y: number }[] | null;
   armed: boolean;
   onPartPointerDown: (uid: string, e: ReactPointerEvent) => void;
+  onBackgroundPointerDown: (e: ReactPointerEvent) => void;
   onBackgroundClick: (clientX: number, clientY: number) => void;
   /** Mausposition über dem Schrank (für die Vorschau beim Klick-Platzieren). */
   onHover: (pos: { x: number; y: number } | null) => void;
@@ -43,11 +46,13 @@ export function CabinetCanvas({
   svgRef,
   project,
   geo,
-  selectedUid,
-  preview,
-  movingUid,
+  selectedUids,
+  previews,
+  movingUids,
+  brushPath,
   armed,
   onPartPointerDown,
+  onBackgroundPointerDown,
   onBackgroundClick,
   onHover,
   onDuplicate,
@@ -68,14 +73,19 @@ export function CabinetCanvas({
     return () => ro.disconnect();
   }, [svgRef, geo]);
 
-  const selected = project.placements.find((p) => p.uid === selectedUid);
+  const selectedSet = new Set(selectedUids);
+  const movingSet = new Set(movingUids);
+  // Duplizieren/Entfernen-Knöpfe nur bei genau einem gewählten Teil.
+  const selected =
+    selectedUids.length === 1 ? project.placements.find((p) => p.uid === selectedUids[0]) : undefined;
 
   return (
     <svg
       ref={svgRef}
-      className={`cabinet-svg ${armed ? 'armed' : ''}`}
+      className={`cabinet-svg ${armed ? 'armed' : ''} ${brushPath ? 'brushing' : ''}`}
       viewBox={`0 0 ${geo.width} ${geo.height}`}
       xmlns="http://www.w3.org/2000/svg"
+      onPointerDown={onBackgroundPointerDown}
       onClick={(e) => onBackgroundClick(e.clientX, e.clientY)}
       onPointerMove={(e) => onHover({ x: e.clientX, y: e.clientY })}
       onPointerLeave={() => onHover(null)}
@@ -87,17 +97,34 @@ export function CabinetCanvas({
           key={p.uid}
           placement={p}
           geo={geo}
-          selected={p.uid === selectedUid}
-          ghost={movingUid === p.uid}
+          selected={selectedSet.has(p.uid)}
+          ghost={movingSet.has(p.uid)}
           onPointerDown={onPartPointerDown}
         />
       ))}
 
-      {selected && !movingUid && (
+      {selected && movingUids.length === 0 && (
         <SelectionTools placement={selected} geo={geo} k={mmPerPx} onDuplicate={onDuplicate} onRemove={onRemove} />
       )}
 
-      {preview && <DropPreview preview={preview} geo={geo} />}
+      {previews.map((preview, i) => (
+        <DropPreview key={i} preview={preview} geo={geo} />
+      ))}
+
+      {brushPath && brushPath.length > 1 && (
+        <polyline
+          data-noexport=""
+          className="brush-trail"
+          points={brushPath.map((p) => `${p.x},${p.y}`).join(' ')}
+          fill="none"
+          stroke="#d97706"
+          strokeOpacity={0.28}
+          strokeWidth={16 * mmPerPx}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          pointerEvents="none"
+        />
+      )}
     </svg>
   );
 }
@@ -365,6 +392,7 @@ function PlacedPart({
   return (
     <g
       className="placed-part"
+      data-uid={placement.uid}
       opacity={ghost ? 0.35 : 1}
       onPointerDown={(e) => onPointerDown(placement.uid, e)}
       onClick={(e) => e.stopPropagation()}

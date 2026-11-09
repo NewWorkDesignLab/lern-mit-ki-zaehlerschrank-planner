@@ -90,6 +90,12 @@ kbd {
   cursor: grabbing !important;
 }
 
+.app.is-brushing,
+.app.is-brushing * {
+  user-select: none;
+  cursor: crosshair !important;
+}
+
 .app-main {
   flex: 1;
   min-height: 0;
@@ -651,6 +657,11 @@ textarea:focus {
   -webkit-user-drag: none;
 }
 
+/* Leere Fläche: Fadenkreuz signalisiert den Auswahl-Pinsel */
+.cabinet-svg {
+  cursor: crosshair;
+}
+
 .cabinet-svg.armed {
   cursor: copy;
 }
@@ -734,6 +745,48 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* --- Mehrfachauswahl -------------------------------------------------------- */
+
+.multi-sel-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+}
+
+.multi-sel-list li {
+  display: flex;
+  gap: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.multi-sel-list li + li {
+  border-top: 1px solid var(--panel-border);
+}
+
+.multi-sel-bmk {
+  flex: none;
+  min-width: 36px;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.multi-sel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-1);
+}
+
+.multi-sel .btn.danger {
+  align-self: flex-start;
 }
 
 .props-head {
