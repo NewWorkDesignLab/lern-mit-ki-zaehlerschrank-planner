@@ -91,7 +91,7 @@ export async function exportPng(svg: SVGSVGElement, project: Project, geo: Cabin
   const template = getTemplate(project.templateId);
   const date = new Date().toLocaleDateString('de-DE');
   root.appendChild(
-    el('text', { x: MARGIN, y: 22, 'font-size': 13, 'font-weight': 700, 'font-family': FONT, fill: '#0f172a' }, project.name),
+    el('text', { x: MARGIN, y: 22, 'font-size': 13, 'font-weight': 700, 'font-family': FONT, fill: '#0f172a' }, project.name.trim() || 'Zählerschrank'),
   );
   root.appendChild(
     el(

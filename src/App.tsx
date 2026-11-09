@@ -72,7 +72,7 @@ export function App() {
     decodeProject(hash.slice(HASH_PREFIX.length))
       .then((p) => {
         dispatch({ type: 'LOAD', project: p });
-        notify(`„${p.name}“ aus Link geladen – Rückgängig stellt deinen vorherigen Stand wieder her.`);
+        notify(`${p.name ? `„${p.name}“` : 'Projekt'} aus Link geladen – Rückgängig stellt deinen vorherigen Stand wieder her.`);
       })
       .catch((e: unknown) => notify(e instanceof Error ? e.message : 'Link konnte nicht gelesen werden.'))
       .finally(() => history.replaceState(null, '', window.location.pathname + window.location.search));

@@ -32,7 +32,7 @@ const MAX_HISTORY = 100;
 const STORAGE_KEY = 'zs-planer:project';
 
 export function newProject(): Project {
-  return { version: 1, name: 'Mein Zählerschrank', templateId: DEFAULT_TEMPLATE_ID, placements: [] };
+  return { version: 1, name: '', templateId: DEFAULT_TEMPLATE_ID, placements: [] };
 }
 
 export function newUid(): string {

@@ -131,12 +131,10 @@ kbd {
 }
 
 .brand-logo {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: var(--accent-soft);
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: none;
 }
 
 .toolbar-project {
@@ -151,6 +149,12 @@ kbd {
   min-width: 120px;
   max-width: 300px;
   font-weight: 600;
+}
+
+.project-name::placeholder {
+  font-weight: 400;
+  color: var(--text-2);
+  opacity: 0.8;
 }
 
 .toolbar-actions {
@@ -191,6 +195,15 @@ textarea:focus {
   background: var(--bg-0);
   cursor: pointer;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn .ico {
+  flex: none;
+  opacity: 0.85;
 }
 
 .btn:hover:not(:disabled) {

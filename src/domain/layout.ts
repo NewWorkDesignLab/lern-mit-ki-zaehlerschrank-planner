@@ -158,7 +158,7 @@ export function normalizeProject(
     }));
   return {
     version: 1,
-    name: typeof r.name === 'string' && r.name ? r.name : 'Mein Zählerschrank',
+    name: typeof r.name === 'string' ? r.name : '',
     templateId: template.id,
     placements: retainFitting(template, placements),
   };
