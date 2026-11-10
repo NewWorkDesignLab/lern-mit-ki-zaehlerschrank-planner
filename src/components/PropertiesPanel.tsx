@@ -8,6 +8,7 @@ import { CATEGORY_LABEL, getPart } from '../catalog/parts';
 import type { CabinetTemplate, CatalogPart, Placement, Project } from '../domain/types';
 import { formatTe } from './CabinetCanvas';
 import { BillOfMaterials } from './BillOfMaterials';
+import { IconClose } from './Icons';
 import { PartThumb } from './PartGraphic';
 
 interface Props {
@@ -18,58 +19,90 @@ interface Props {
   selection: Placement[];
   onUpdate: (uid: string, patch: Partial<Pick<Placement, 'bmk' | 'note'>>) => void;
   onRemoveMany: (uids: string[]) => void;
+  /** Bedienhinweise für Touch statt Maus und Tastatur. */
+  touch?: boolean;
+  /** Gesetzt, wenn die Spalte einblendbar ist (Tablet) – zeigt einen Schließen-Knopf. */
+  onClose?: () => void;
+  className?: string;
 }
 
-export function PropertiesPanel({ project, template, selected, selection, onUpdate, onRemoveMany }: Props) {
+export function PropertiesPanel({ project, className = '', onClose, ...props }: Props) {
+  return (
+    <aside className={`sidebar ${className}`}>
+      {onClose && (
+        <button className="btn icon ghost sidebar-close" onClick={onClose} aria-label="Schließen" title="Schließen">
+          <IconClose />
+        </button>
+      )}
+      <PropertiesSection {...props} />
+      <BillOfMaterials project={project} />
+    </aside>
+  );
+}
+
+/** Eigenschaften des gewählten Bauteils (bzw. der Mehrfachauswahl). */
+export function PropertiesSection({
+  template,
+  selected,
+  selection,
+  onUpdate,
+  onRemoveMany,
+  touch,
+}: Omit<Props, 'project' | 'onClose' | 'className'>) {
   const [showInfo, setShowInfo] = useState(false);
   const selectedPart = selected ? getPart(selected.partId) : undefined;
   const hasInfo = !!selectedPart && hasDetails(selectedPart);
   return (
-    <aside className="sidebar">
-      <section className="panel props">
-        <div className="panel-head">
-          <h2 className="panel-title">Eigenschaften</h2>
-          {hasInfo && (
-            <button
-              className={`info-btn ${showInfo ? 'active' : ''}`}
-              onClick={() => setShowInfo((v) => !v)}
-              title={showInfo ? 'Herstellerangaben ausblenden' : 'Herstellerangaben anzeigen'}
-              aria-pressed={showInfo}
-            >
-              i
-            </button>
-          )}
-        </div>
-        {selection.length > 1 ? (
-          <MultiSelection selection={selection} onRemoveMany={onRemoveMany} />
-        ) : selected ? (
-          <SelectedPart
-            key={selected.uid}
-            placement={selected}
-            template={template}
-            showInfo={showInfo}
-            onUpdate={onUpdate}
-          />
-        ) : (
-          <p className="muted">
-            Ein Bauteil im Schrank anklicken, um BMK, Notiz und technische Daten zu sehen. Verschieben per Ziehen oder mit{' '}
-            <kbd>←</kbd>/<kbd>→</kbd>; löschen mit <kbd>Entf</kbd>, dem roten × oder durch Ziehen in eine der roten
-            Flächen, die beim Ziehen neben dem Schrank erscheinen. Mehrere Bauteile wählen: auf leerer Fläche klicken
-            und mit gedrückter Maustaste darüberfahren.
-          </p>
+    <section className="panel props">
+      <div className="panel-head">
+        <h2 className="panel-title">Eigenschaften</h2>
+        {hasInfo && (
+          <button
+            className={`info-btn ${showInfo ? 'active' : ''}`}
+            onClick={() => setShowInfo((v) => !v)}
+            title={showInfo ? 'Herstellerangaben ausblenden' : 'Herstellerangaben anzeigen'}
+            aria-pressed={showInfo}
+          >
+            i
+          </button>
         )}
-      </section>
-      <BillOfMaterials project={project} />
-    </aside>
+      </div>
+      {selection.length > 1 ? (
+        <MultiSelection selection={selection} onRemoveMany={onRemoveMany} touch={touch} />
+      ) : selected ? (
+        <SelectedPart
+          key={selected.uid}
+          placement={selected}
+          template={template}
+          showInfo={showInfo}
+          onUpdate={onUpdate}
+        />
+      ) : touch ? (
+        <p className="muted">
+          Ein Bauteil im Schrank antippen, um BMK, Notiz und technische Daten zu sehen. Ein gewähltes Bauteil lässt
+          sich per Ziehen verschieben; löschen mit dem roten × oder durch Ziehen auf die rote Fläche. Mit zwei Fingern
+          zoomen, mit einem Finger den Schrank verschieben.
+        </p>
+      ) : (
+        <p className="muted">
+          Ein Bauteil im Schrank anklicken, um BMK, Notiz und technische Daten zu sehen. Verschieben per Ziehen oder mit{' '}
+          <kbd>←</kbd>/<kbd>→</kbd>; löschen mit <kbd>Entf</kbd>, dem roten × oder durch Ziehen in eine der roten
+          Flächen, die beim Ziehen neben dem Schrank erscheinen. Mehrere Bauteile wählen: auf leerer Fläche klicken
+          und mit gedrückter Maustaste darüberfahren.
+        </p>
+      )}
+    </section>
   );
 }
 
 function MultiSelection({
   selection,
   onRemoveMany,
+  touch,
 }: {
   selection: Placement[];
   onRemoveMany: Props['onRemoveMany'];
+  touch?: boolean;
 }) {
   return (
     <div className="props-body multi-sel">
@@ -85,10 +118,17 @@ function MultiSelection({
       <button className="btn danger" onClick={() => onRemoveMany(selection.map((p) => p.uid))}>
         Auswahl löschen
       </button>
-      <p className="muted">
-        Gemeinsam verschieben: ein gewähltes Bauteil ziehen oder <kbd>←</kbd>/<kbd>→</kbd>. Mit <kbd>Strg</kbd>+Klick
-        einzelne Bauteile hinzufügen oder abwählen, <kbd>Esc</kbd> hebt die Auswahl auf.
-      </p>
+      {touch ? (
+        <p className="muted">
+          Gemeinsam verschieben: ein gewähltes Bauteil ziehen. Im Modus „Mehrfachauswahl“ einzelne Bauteile antippen,
+          um sie hinzuzufügen oder abzuwählen.
+        </p>
+      ) : (
+        <p className="muted">
+          Gemeinsam verschieben: ein gewähltes Bauteil ziehen oder <kbd>←</kbd>/<kbd>→</kbd>. Mit <kbd>Strg</kbd>+Klick
+          einzelne Bauteile hinzufügen oder abwählen, <kbd>Esc</kbd> hebt die Auswahl auf.
+        </p>
+      )}
     </div>
   );
 }

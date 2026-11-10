@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import { useLayoutEffect, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { getPart } from '../catalog/parts';
 import type { CabinetGeo, ZoneGeo } from '../domain/geometry';
 import { FRAME, PHOTO_MAX_H, RAIL_H, TE_MM, getZoneGeo } from '../domain/geometry';
@@ -35,7 +35,15 @@ interface Props {
   armed: boolean;
   /** Auswahl-Modus (Touch): Wischen pinselt statt zu scrollen. */
   selectMode: boolean;
+  /** Touch-Layout: Wischen über nicht gewählte Bauteile scrollt den Schrank. */
+  touchPan: boolean;
+  /** Angetippter Platz (Handy), wird hervorgehoben. */
+  slotZone: { field: number; zone: number } | null;
+  /** Feste Größe in px (Zoom auf Touch-Layouts). */
+  style?: CSSProperties;
   onPartPointerDown: (uid: string, e: ReactPointerEvent) => void;
+  /** Tippen/Klicken auf ein Bauteil ohne Ziehen. */
+  onPartTap: (uid: string) => void;
   onBackgroundPointerDown: (e: ReactPointerEvent) => void;
   onBackgroundClick: (clientX: number, clientY: number) => void;
   /** Mausposition über dem Schrank (für die Vorschau beim Klick-Platzieren). */
@@ -54,7 +62,11 @@ export function CabinetCanvas({
   brushPath,
   armed,
   selectMode,
+  touchPan,
+  slotZone,
+  style,
   onPartPointerDown,
+  onPartTap,
   onBackgroundPointerDown,
   onBackgroundClick,
   onHover,
@@ -85,7 +97,8 @@ export function CabinetCanvas({
   return (
     <svg
       ref={svgRef}
-      className={`cabinet-svg ${armed ? 'armed' : ''} ${brushPath ? 'brushing' : ''} ${selectMode ? 'select-mode' : ''}`}
+      className={`cabinet-svg ${armed ? 'armed' : ''} ${brushPath ? 'brushing' : ''} ${selectMode ? 'select-mode' : ''} ${touchPan ? 'touch-pan' : ''}`}
+      style={style}
       viewBox={`0 0 ${geo.width} ${geo.height}`}
       xmlns="http://www.w3.org/2000/svg"
       onPointerDown={onBackgroundPointerDown}
@@ -103,8 +116,11 @@ export function CabinetCanvas({
           selected={selectedSet.has(p.uid)}
           ghost={movingSet.has(p.uid)}
           onPointerDown={onPartPointerDown}
+          onTap={onPartTap}
         />
       ))}
+
+      {slotZone && <SlotHighlight geo={geo} {...slotZone} />}
 
       {selected && movingUids.length === 0 && (
         <SelectionTools placement={selected} geo={geo} k={mmPerPx} onDuplicate={onDuplicate} onRemove={onRemove} />
@@ -378,12 +394,14 @@ function PlacedPart({
   selected,
   ghost,
   onPointerDown,
+  onTap,
 }: {
   placement: Placement;
   geo: CabinetGeo;
   selected: boolean;
   ghost: boolean;
   onPointerDown: (uid: string, e: ReactPointerEvent) => void;
+  onTap: (uid: string) => void;
 }) {
   const part = getPart(placement.partId);
   if (!part) return null;
@@ -394,11 +412,14 @@ function PlacedPart({
 
   return (
     <g
-      className="placed-part"
+      className={`placed-part ${selected ? 'is-selected' : ''}`}
       data-uid={placement.uid}
       opacity={ghost ? 0.35 : 1}
       onPointerDown={(e) => onPointerDown(placement.uid, e)}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onTap(placement.uid);
+      }}
     >
       {/* Unsichtbare Trefferfläche über die volle Bauteilbreite */}
       <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="transparent" />
@@ -430,6 +451,28 @@ function PlacedPart({
         />
       )}
     </g>
+  );
+}
+
+/** Rahmen um den angetippten Platz, solange das Dock nur passende Teile zeigt. */
+function SlotHighlight({ geo, field, zone }: { geo: CabinetGeo; field: number; zone: number }) {
+  const z = getZoneGeo(geo, field, zone);
+  if (!z) return null;
+  return (
+    <rect
+      data-noexport=""
+      className="slot-highlight"
+      x={z.x + 3}
+      y={z.y + 3}
+      width={z.w - 6}
+      height={z.h - 6}
+      rx={6}
+      fill="rgba(217,119,6,0.08)"
+      stroke="#d97706"
+      strokeWidth={1.6}
+      strokeDasharray="6 4"
+      pointerEvents="none"
+    />
   );
 }
 

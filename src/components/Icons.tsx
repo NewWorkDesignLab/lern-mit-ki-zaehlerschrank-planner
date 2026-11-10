@@ -90,3 +90,56 @@ export const IconMultiSelect = () => (
     <path d="m12.5 15.5 1.6 1.6 2.9-3.1" />
   </Icon>
 );
+
+export const IconMore = () => (
+  <Icon>
+    <circle cx="5" cy="12" r="1.2" />
+    <circle cx="12" cy="12" r="1.2" />
+    <circle cx="19" cy="12" r="1.2" />
+  </Icon>
+);
+
+export const IconSearch = () => (
+  <Icon>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-4-4" />
+  </Icon>
+);
+
+export const IconClose = () => (
+  <Icon>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Icon>
+);
+
+export const IconPlus = () => (
+  <Icon>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+export const IconMinus = () => (
+  <Icon>
+    <path d="M5 12h14" />
+  </Icon>
+);
+
+/** Ansicht einpassen: vier Ecken. */
+export const IconFit = () => (
+  <Icon>
+    <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+  </Icon>
+);
+
+/** Dock auf- oder zuklappen (Pfeil nach oben, per CSS drehbar). */
+export const IconChevronUp = () => (
+  <Icon>
+    <path d="m6 15 6-6 6 6" />
+  </Icon>
+);
+
+export const IconList = () => (
+  <Icon>
+    <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />
+  </Icon>
+);

@@ -1,14 +1,16 @@
 // ---------------------------------------------------------------------------
 // Kopfzeile: Projektname, Schrankvorlage, Bearbeiten, Datei, Export.
+// Kompakt (Handy / Tablet hoch): eine Zeile, Datei & Export im ⋯-Menü.
 // ---------------------------------------------------------------------------
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { TEMPLATES } from '../catalog/templates';
 import type { Project } from '../domain/types';
-import { IconImage, IconNew, IconOpen, IconRedo, IconSave, IconShare, IconUndo } from './Icons';
+import { IconImage, IconMore, IconNew, IconOpen, IconRedo, IconSave, IconShare, IconUndo } from './Icons';
 
 interface Props {
   project: Project;
+  compact: boolean;
   canUndo: boolean;
   canRedo: boolean;
   exporting: boolean;
@@ -52,7 +54,7 @@ export function Toolbar(props: Props) {
     const ro = new ResizeObserver(check);
     ro.observe(header);
     return () => ro.disconnect();
-  }, []);
+  }, [props.compact]);
 
   const handleExport = () => {
     if (needsName) {
@@ -62,6 +64,111 @@ export function Toolbar(props: Props) {
     }
     props.onExportPng();
   };
+
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept=".json,application/json"
+      hidden
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) props.onOpen(file);
+        e.target.value = '';
+      }}
+    />
+  );
+
+  const nameInput = (
+    <input
+      ref={nameRef}
+      className={`project-name ${needsName ? 'needs-name' : ''}`}
+      value={project.name}
+      onChange={(e) => props.onRename(e.target.value)}
+      placeholder="Unbenanntes Projekt"
+      title="Projektname, z. B. EFH Musterstraße 12"
+      aria-label="Projektname"
+      aria-describedby={needsName ? 'name-hint' : undefined}
+    />
+  );
+
+  const nameHint = needsName && (
+    <div
+      key={nudge}
+      id="name-hint"
+      className={`name-hint ${nudge > 0 ? 'is-nudged' : ''}`}
+      role={nudge > 0 ? 'alert' : undefined}
+    >
+      <strong>Gib deinem Projekt einen Namen</strong>
+      <span>
+        {nudge > 0
+          ? 'Vor dem Export bitte einen Namen festlegen – er erscheint im Belegungsplan.'
+          : 'Er erscheint später im Belegungsplan.'}
+      </span>
+    </div>
+  );
+
+  const templateSelect = (
+    <select
+      value={project.templateId}
+      onChange={(e) => props.onTemplate(e.target.value)}
+      aria-label="Schrankvorlage"
+      title={template?.description}
+    >
+      {TEMPLATES.map((t) => (
+        <option key={t.id} value={t.id}>
+          {t.name}
+        </option>
+      ))}
+    </select>
+  );
+
+  const undoRedo = (
+    <>
+      <button
+        className="btn icon ghost"
+        onClick={props.onUndo}
+        disabled={!props.canUndo}
+        title="Rückgängig (Strg+Z)"
+        aria-label="Rückgängig"
+      >
+        <IconUndo />
+      </button>
+      <button
+        className="btn icon ghost"
+        onClick={props.onRedo}
+        disabled={!props.canRedo}
+        title="Wiederholen (Strg+Y)"
+        aria-label="Wiederholen"
+      >
+        <IconRedo />
+      </button>
+    </>
+  );
+
+  if (props.compact) {
+    return (
+      <header className="toolbar compact">
+        <img className="brand-logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={28} height={28} />
+        <div className="project-name-wrap">
+          {nameInput}
+          {/* Kompakt nur beim Export-Versuch – sonst reicht die orange Kontur. */}
+          {nudge > 0 && nameHint}
+        </div>
+        {undoRedo}
+        <CompactMenu
+          templateSelect={templateSelect}
+          exporting={props.exporting}
+          onNew={props.onNew}
+          onOpen={() => fileRef.current?.click()}
+          onSave={props.onSave}
+          onShare={props.onShare}
+          onExport={handleExport}
+        />
+        {fileInput}
+      </header>
+    );
+  }
 
   return (
     <header ref={headerRef} className={`toolbar ${wrapped ? 'is-wrapped' : ''}`}>
@@ -75,91 +182,30 @@ export function Toolbar(props: Props) {
           /
         </span>
         <div className="project-name-wrap">
-          <input
-            ref={nameRef}
-            className={`project-name ${needsName ? 'needs-name' : ''}`}
-            value={project.name}
-            onChange={(e) => props.onRename(e.target.value)}
-            placeholder="Unbenanntes Projekt"
-            title="Projektname, z. B. EFH Musterstraße 12"
-            aria-label="Projektname"
-            aria-describedby={needsName ? 'name-hint' : undefined}
-          />
-          {needsName && (
-            <div
-              key={nudge}
-              id="name-hint"
-              className={`name-hint ${nudge > 0 ? 'is-nudged' : ''}`}
-              role={nudge > 0 ? 'alert' : undefined}
-            >
-              <strong>Gib deinem Projekt einen Namen</strong>
-              <span>
-                {nudge > 0
-                  ? 'Vor dem Export bitte einen Namen festlegen – er erscheint im Belegungsplan.'
-                  : 'Er erscheint später im Belegungsplan.'}
-              </span>
-            </div>
-          )}
+          {nameInput}
+          {nameHint}
         </div>
-        <select
-          value={project.templateId}
-          onChange={(e) => props.onTemplate(e.target.value)}
-          aria-label="Schrankvorlage"
-          title={template?.description}
-        >
-          {TEMPLATES.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        {templateSelect}
       </div>
 
       <div ref={actionsRef} className="toolbar-actions">
-        <button
-          className="btn icon ghost"
-          onClick={props.onUndo}
-          disabled={!props.canUndo}
-          title="Rückgängig (Strg+Z)"
-          aria-label="Rückgängig"
-        >
-          <IconUndo />
-        </button>
-        <button
-          className="btn icon ghost"
-          onClick={props.onRedo}
-          disabled={!props.canRedo}
-          title="Wiederholen (Strg+Y)"
-          aria-label="Wiederholen"
-        >
-          <IconRedo />
-        </button>
+        {undoRedo}
         <span className="sep" />
         <div className="btn-group" role="group" aria-label="Datei">
-          <button className="btn" onClick={props.onNew} title="Neues, leeres Projekt">
+          <button className="btn" onClick={props.onNew} title="Neues, leeres Projekt" aria-label="Neu">
             <IconNew />
-            Neu
+            <span className="btn-label">Neu</span>
           </button>
-          <button className="btn" onClick={() => fileRef.current?.click()} title="Gespeichertes Projekt öffnen">
+          <button className="btn" onClick={() => fileRef.current?.click()} title="Gespeichertes Projekt öffnen" aria-label="Öffnen">
             <IconOpen />
-            Öffnen
+            <span className="btn-label">Öffnen</span>
           </button>
-          <button className="btn" onClick={props.onSave} title="Projekt als .json-Datei speichern">
+          <button className="btn" onClick={props.onSave} title="Projekt als .json-Datei speichern" aria-label="Speichern">
             <IconSave />
-            Speichern
+            <span className="btn-label">Speichern</span>
           </button>
         </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".json,application/json"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) props.onOpen(file);
-            e.target.value = '';
-          }}
-        />
+        {fileInput}
         <span className="sep" />
         <button className="btn" onClick={props.onShare} title="Link und QR-Code zum Projekt anzeigen">
           <IconShare />
@@ -176,5 +222,71 @@ export function Toolbar(props: Props) {
         </button>
       </div>
     </header>
+  );
+}
+
+/** ⋯-Menü der kompakten Kopfzeile: Schrankvorlage, Datei, Teilen, Export. */
+function CompactMenu(props: {
+  templateSelect: JSX.Element;
+  exporting: boolean;
+  onNew: () => void;
+  onOpen: () => void;
+  onSave: () => void;
+  onShare: () => void;
+  onExport: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [open]);
+
+  const item = (label: string, icon: JSX.Element, onClick: () => void, cls = '') => (
+    <button
+      className={`menu-item ${cls}`}
+      role="menuitem"
+      onClick={() => {
+        setOpen(false);
+        onClick();
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+
+  return (
+    <div ref={ref} className="compact-menu">
+      <button
+        className={`btn icon ${open ? 'active' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Menü"
+        title="Menü"
+      >
+        <IconMore />
+      </button>
+      {open && (
+        <div className="menu-pop" role="menu">
+          <label className="menu-field">
+            <span>Schrankvorlage</span>
+            {props.templateSelect}
+          </label>
+          <div className="menu-sep" />
+          {item('Neu', <IconNew />, props.onNew)}
+          {item('Öffnen', <IconOpen />, props.onOpen)}
+          {item('Speichern', <IconSave />, props.onSave)}
+          <div className="menu-sep" />
+          {item('Teilen / QR', <IconShare />, props.onShare)}
+          {item(props.exporting ? 'Exportiere …' : 'Als Bild exportieren', <IconImage />, props.onExport, 'primary')}
+        </div>
+      )}
+    </div>
   );
 }

@@ -16,21 +16,26 @@ interface Props {
   onChipClick: (partId: string) => void;
 }
 
+/** Katalog nach Hersteller und Suchbegriff filtern (auch fürs Katalog-Dock). */
+export function filterCatalog(manufacturer: string, query: string): CatalogPart[] {
+  const q = query.trim().toLowerCase();
+  return CATALOG.filter(
+    (p) =>
+      (!manufacturer || p.manufacturer === manufacturer) &&
+      (!q ||
+        [p.name, p.manufacturer, p.articleNo ?? '', CATEGORY_LABEL[p.category], ...Object.values(p.specs)]
+          .join(' ')
+          .toLowerCase()
+          .includes(q)),
+  );
+}
+
 export function Library({ armedPartId, onChipPointerDown, onChipClick }: Props) {
   const [manufacturer, setManufacturer] = useState('');
   const [query, setQuery] = useState('');
 
   const groups = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = CATALOG.filter(
-      (p) =>
-        (!manufacturer || p.manufacturer === manufacturer) &&
-        (!q ||
-          [p.name, p.manufacturer, p.articleNo ?? '', CATEGORY_LABEL[p.category], ...Object.values(p.specs)]
-            .join(' ')
-            .toLowerCase()
-            .includes(q)),
-    );
+    const list = filterCatalog(manufacturer, query);
     return CATEGORY_ORDER.map((cat) => ({ cat, items: list.filter((p) => p.category === cat) })).filter(
       (g) => g.items.length > 0,
     );
