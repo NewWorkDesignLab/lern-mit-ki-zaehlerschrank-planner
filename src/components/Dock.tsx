@@ -10,8 +10,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import { CATALOG, CATEGORY_ORDER, MANUFACTURERS } from '../catalog/parts';
-import type { CatalogPart, PartCategory } from '../domain/types';
+import { CATEGORY_ORDER, MANUFACTURERS } from '../catalog/parts';
+import type { PartCategory } from '../domain/types';
 import { formatTe } from './CabinetCanvas';
 import { IconChevronUp, IconClose, IconSearch } from './Icons';
 import { filterCatalog } from './Library';
@@ -32,30 +32,22 @@ const CATEGORY_SHORT: Record<PartCategory, string> = {
   klemme: 'Klemmen',
 };
 
-/** Angetippter Platz im Schrank: Katalog zeigt nur, was dort hinpasst. */
-export interface DockSlot {
-  label: string;
-  fits: (part: CatalogPart) => boolean;
-}
-
 type Tab = 'parts' | 'props' | 'bom';
 
 interface Props {
   armedPartId: string | null;
   selectionCount: number;
   bomCount: number;
-  slot: DockSlot | null;
   /** Ein Bauteil wird gerade aus dem Katalog gezogen – aufgeklapptes Dock einklappen. */
   draggingFromCatalog: boolean;
   properties: ReactNode;
   bom: ReactNode;
   onTilePointerDown: (partId: string, e: ReactPointerEvent) => void;
   onTileClick: (partId: string) => void;
-  onCloseSlot: () => void;
 }
 
 export function Dock(props: Props) {
-  const { selectionCount, slot } = props;
+  const { selectionCount } = props;
   const [tab, setTab] = useState<Tab>('parts');
   const [expanded, setExpanded] = useState(false);
 
@@ -64,9 +56,6 @@ export function Dock(props: Props) {
   useEffect(() => {
     setTab((t) => (hasSelection ? 'props' : t === 'props' ? 'parts' : t));
   }, [hasSelection]);
-  useEffect(() => {
-    if (slot) setTab('parts');
-  }, [slot]);
   useEffect(() => {
     if (props.draggingFromCatalog) setExpanded(false);
   }, [props.draggingFromCatalog]);
@@ -112,11 +101,9 @@ export function Dock(props: Props) {
 
 function Catalog({
   armedPartId,
-  slot,
   expanded,
   onTilePointerDown,
   onTileClick,
-  onCloseSlot,
 }: Props & { expanded: boolean }) {
   const [category, setCategory] = useState<PartCategory | ''>('');
   const [manufacturer, setManufacturer] = useState('');
@@ -127,18 +114,16 @@ function Catalog({
   const found = useMemo(() => filterCatalog(manufacturer, query), [manufacturer, query]);
   const categories = useMemo(() => CATEGORY_ORDER.filter((c) => found.some((p) => p.category === c)), [found]);
   const items = useMemo(() => {
-    // Platz-Modus: nur was dort passt, unabhängig von Kategorie und Suche.
     const sorted = [...found].sort(
       (a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category),
     );
-    if (slot) return CATALOG.filter(slot.fits);
     return category ? sorted.filter((p) => p.category === category) : sorted;
-  }, [found, category, slot]);
+  }, [found, category]);
 
   // Neue Filter -> Leiste an den Anfang.
   useEffect(() => {
     stripRef.current?.scrollTo({ left: 0, top: 0 });
-  }, [category, query, manufacturer, slot]);
+  }, [category, query, manufacturer]);
 
   const chip = (id: PartCategory | '', label: string) => (
     <button key={id || 'all'} className={`dock-chip ${category === id ? 'active' : ''}`} onClick={() => setCategory(id)}>
@@ -148,16 +133,7 @@ function Catalog({
 
   return (
     <>
-      {slot ? (
-        <div className="dock-filter slot">
-          <span className="dock-slot-label">
-            Passt in <b>{slot.label}</b>
-          </span>
-          <button className="btn icon ghost" onClick={onCloseSlot} aria-label="Platz-Auswahl beenden" title="Beenden">
-            <IconClose />
-          </button>
-        </div>
-      ) : searching ? (
+      {searching ? (
         <div className="dock-filter">
           <input
             type="search"
@@ -202,7 +178,7 @@ function Catalog({
 
       <div ref={stripRef} className="dock-strip">
         {items.length === 0 && (
-          <p className="muted dock-empty">{slot ? 'Hier passt kein Bauteil mehr hin.' : 'Keine Bauteile gefunden.'}</p>
+          <p className="muted dock-empty">Keine Bauteile gefunden.</p>
         )}
         {items.map((part) => (
           <button

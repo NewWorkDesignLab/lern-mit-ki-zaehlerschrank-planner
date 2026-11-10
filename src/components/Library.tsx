@@ -81,7 +81,7 @@ export function Library({ armedPartId, onChipPointerDown, onChipClick }: Props) 
 
       <p className="library-hint">
         Bauteil in den Schrank <b>ziehen</b> – oder <b>anklicken</b> und dann auf eine Hutschiene
-        klicken (mehrfach möglich, <kbd>Esc</kbd> beendet). Technische Daten sind Beispieldaten –
+        klicken (mehrfach möglich; erneut anklicken oder <kbd>Esc</kbd> beendet). Technische Daten sind Beispieldaten –
         vor dem Aufbau mit dem Datenblatt abgleichen.
       </p>
     </aside>

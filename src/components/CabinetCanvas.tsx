@@ -37,8 +37,6 @@ interface Props {
   selectMode: boolean;
   /** Touch-Layout: Wischen über nicht gewählte Bauteile scrollt den Schrank. */
   touchPan: boolean;
-  /** Angetippter Platz (Handy), wird hervorgehoben. */
-  slotZone: { field: number; zone: number } | null;
   /** Feste Größe in px (Zoom auf Touch-Layouts). */
   style?: CSSProperties;
   onPartPointerDown: (uid: string, e: ReactPointerEvent) => void;
@@ -63,7 +61,6 @@ export function CabinetCanvas({
   armed,
   selectMode,
   touchPan,
-  slotZone,
   style,
   onPartPointerDown,
   onPartTap,
@@ -119,8 +116,6 @@ export function CabinetCanvas({
           onTap={onPartTap}
         />
       ))}
-
-      {slotZone && <SlotHighlight geo={geo} {...slotZone} />}
 
       {selected && movingUids.length === 0 && (
         <SelectionTools placement={selected} geo={geo} k={mmPerPx} onDuplicate={onDuplicate} onRemove={onRemove} />
@@ -451,28 +446,6 @@ function PlacedPart({
         />
       )}
     </g>
-  );
-}
-
-/** Rahmen um den angetippten Platz, solange das Dock nur passende Teile zeigt. */
-function SlotHighlight({ geo, field, zone }: { geo: CabinetGeo; field: number; zone: number }) {
-  const z = getZoneGeo(geo, field, zone);
-  if (!z) return null;
-  return (
-    <rect
-      data-noexport=""
-      className="slot-highlight"
-      x={z.x + 3}
-      y={z.y + 3}
-      width={z.w - 6}
-      height={z.h - 6}
-      rx={6}
-      fill="rgba(217,119,6,0.08)"
-      stroke="#d97706"
-      strokeWidth={1.6}
-      strokeDasharray="6 4"
-      pointerEvents="none"
-    />
   );
 }
 

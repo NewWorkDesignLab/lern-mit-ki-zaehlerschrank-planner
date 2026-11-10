@@ -3,28 +3,17 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { getPart } from './catalog/parts';
 import { TEMPLATES, getTemplate } from './catalog/templates';
 import { BillOfMaterials } from './components/BillOfMaterials';
-import { CabinetCanvas, formatTe } from './components/CabinetCanvas';
+import { CabinetCanvas } from './components/CabinetCanvas';
 import type { Preview } from './components/CabinetCanvas';
 import { Dock } from './components/Dock';
-import type { DockSlot } from './components/Dock';
 import { IconFit, IconList, IconMinus, IconMultiSelect, IconPlus } from './components/Icons';
 import { Library } from './components/Library';
 import { PartThumb } from './components/PartGraphic';
 import { PropertiesPanel, PropertiesSection } from './components/PropertiesPanel';
 import { ShareDialog } from './components/ShareDialog';
 import { Toolbar } from './components/Toolbar';
-import { TE_MM, computeGeometry, zoneAt } from './domain/geometry';
-import {
-  canPlace,
-  firstFreeSpot,
-  nearestFreeTe,
-  planGroupMove,
-  railZones,
-  rangeBetween,
-  retainFitting,
-  snapTe,
-  usedTe,
-} from './domain/layout';
+import { computeGeometry } from './domain/geometry';
+import { canPlace, firstFreeSpot, planGroupMove, railZones, rangeBetween, retainFitting } from './domain/layout';
 import type { GroupPlan } from './domain/layout';
 import { computeTarget, wishAt } from './domain/target';
 import { readProjectFile, saveProjectFile } from './export/file';
@@ -69,13 +58,6 @@ const BRUSH_STEP = 6;
 const isMod = (e: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) => e.ctrlKey || e.metaKey || e.shiftKey;
 const isCtrl = (e: { ctrlKey: boolean; metaKey: boolean }) => e.ctrlKey || e.metaKey;
 
-/** Angetippter Platz im Schrank (Handy): Hutschiene/Zählerplatz und Wunsch-TE. */
-interface Slot {
-  field: number;
-  zone: number;
-  te: number;
-}
-
 export function App() {
   const { project, canUndo, canRedo, dispatch } = useProject();
   const template = getTemplate(project.templateId) ?? TEMPLATES[0];
@@ -98,7 +80,6 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [slot, setSlot] = useState<Slot | null>(null);
   /** Tablet: Seitenleiste mit Stückliste auch ohne Auswahl eingeblendet. */
   const [bomOpen, setBomOpen] = useState(false);
   /** Unterdrückt den Klick, der nach einem Ziehen ausgelöst wird. */
@@ -137,12 +118,6 @@ export function App() {
   // Layoutwechsel (z. B. Tablet drehen): wieder den ganzen Schrank zeigen.
   const resetZoom = zoom.reset;
   useEffect(() => resetZoom(), [layout, resetZoom]);
-
-  // Platz-Auswahl gilt nur, solange nichts gewählt ist und das Dock sichtbar ist.
-  useEffect(() => {
-    if (selectedUids.length > 0 || !compact) setSlot(null);
-  }, [selectedUids.length, compact]);
-  useEffect(() => setSlot(null), [project.templateId]);
 
   /** Nach dem Hinzufügen: auf Desktop/Tablet auswählen, im Dock bleibt der Katalog offen. */
   const selectAdded = (uid: string) => {
@@ -472,12 +447,7 @@ export function App() {
     if (suppressClick.current) return;
     if (!armedPartId) {
       // Im Auswahl-Modus hebt ein versehentliches Tippen daneben die Auswahl nicht auf.
-      if (selectMode) return;
-      if (compact && selectedUids.length === 0) {
-        setSlot(slotAt(clientX, clientY));
-        return;
-      }
-      setSelectedUids([]);
+      if (!selectMode) setSelectedUids([]);
       return;
     }
     const hit = targetAt(armedPartId, clientX, clientY);
@@ -489,52 +459,6 @@ export function App() {
     const uid = newUid();
     dispatch({ type: 'ADD', uid, partId: armedPartId, ...hit.target });
     selectAdded(uid);
-  };
-
-  // --- Platz antippen -> Dock zeigt, was dort hinpasst (Handy) -------------------
-  const slotAt = (clientX: number, clientY: number): Slot | null => {
-    const p = toSvg(clientX, clientY);
-    const z = p && zoneAt(geo, p.x, p.y);
-    if (!p || !z) return null;
-    if (z.zone.kind === 'rail') return { field: z.field, zone: z.index, te: snapTe((p.x - z.railX) / TE_MM) };
-    if (z.zone.kind === 'meter') return { field: z.field, zone: z.index, te: 0 };
-    return null;
-  };
-
-  /** Freie Stelle für ein Bauteil im Platz – nahe der angetippten Stelle. */
-  const slotSpot = useCallback(
-    (s: Slot, partId: string) => {
-      const part = getPart(partId);
-      if (!part) return null;
-      const te = nearestFreeTe(template, project.placements, part, s.field, s.zone, s.te - part.widthTE / 2);
-      return te === null ? null : { part, te };
-    },
-    [template, project.placements],
-  );
-
-  const dockSlot: DockSlot | null = useMemo(() => {
-    if (!slot) return null;
-    const field = template.fields[slot.field];
-    const zone = field?.zones[slot.zone];
-    if (!zone) return null;
-    const free =
-      zone.kind === 'rail' ? ` · ${formatTe(zone.te - usedTe(project.placements, slot.field, slot.zone))} TE frei` : '';
-    return {
-      label: `${field.name} · ${zone.label}${free}`,
-      fits: (part) => slotSpot(slot, part.id) !== null,
-    };
-  }, [slot, template, project.placements, slotSpot]);
-
-  const placeInSlot = (partId: string) => {
-    if (!slot) return;
-    const spot = slotSpot(slot, partId);
-    if (!spot) {
-      notify('Dort ist kein Platz für dieses Bauteil.');
-      return;
-    }
-    dispatch({ type: 'ADD', uid: newUid(), partId, field: slot.field, zone: slot.zone, te: spot.te });
-    // Das nächste Teil landet rechts daneben.
-    setSlot({ ...slot, te: spot.te + spot.part.widthTE * 1.5 });
   };
 
   // --- Aktionen ------------------------------------------------------------------
@@ -617,7 +541,6 @@ export function App() {
         setSelectedUids(project.placements.map((p) => p.uid));
       } else if (e.key === 'Escape') {
         setArmedPartId(null);
-        setSlot(null);
         setSelectedUids([]);
         setSelectMode(false);
       } else if (selectedUids.length > 0 && (e.key === 'Delete' || e.key === 'Backspace')) {
@@ -648,8 +571,7 @@ export function App() {
 
   const handleChipClick = (partId: string) => {
     if (suppressClick.current) return;
-    if (slot) placeInSlot(partId);
-    else setArmedPartId((cur) => (cur === partId ? null : partId));
+    setArmedPartId((cur) => (cur === partId ? null : partId));
   };
 
   const propertiesProps = {
@@ -706,33 +628,23 @@ export function App() {
 
         <section className="panel canvas-panel">
           <div className="canvas-stage">
-            {armedPartId && (
-              // Schwebt über dem Schrank – verschiebt das Layout nicht.
-              <div className="armed-bar" role="status">
-                <span>
-                  <b>{getPart(armedPartId)?.name}</b> – auf eine freie Stelle im Schrank {touchUi ? 'tippen' : 'klicken'}.
-                </span>
-                <button className="btn small" onClick={() => setArmedPartId(null)}>
-                  {touchUi ? 'Fertig' : 'Fertig (Esc)'}
-                </button>
-              </div>
-            )}
-            {!armedPartId && (
-              // Werkzeug nur auf Touch-Geräten (CSS) – ersetzt Strg+Klick und den Maus-Pinsel.
-              <button
-                className={`tool-btn touch-only ${selectMode ? 'active' : ''}`}
-                onClick={() => setSelectMode((v) => !v)}
-                aria-pressed={selectMode}
-                title={
-                  selectMode
-                    ? 'Mehrfachauswahl beenden'
-                    : 'Mehrere Bauteile antippen oder überwischen'
-                }
-              >
-                <IconMultiSelect />
-                {selectMode ? 'Auswahl beenden' : 'Mehrfachauswahl'}
-              </button>
-            )}
+            {/* Werkzeug nur auf Touch-Geräten (CSS) – ersetzt Strg+Klick und den Maus-Pinsel. */}
+            <button
+              className={`tool-btn touch-only ${selectMode ? 'active' : ''}`}
+              onClick={() => {
+                setArmedPartId(null);
+                setSelectMode((v) => !v);
+              }}
+              aria-pressed={selectMode}
+              title={
+                selectMode
+                  ? 'Mehrfachauswahl beenden'
+                  : 'Mehrere Bauteile antippen oder überwischen'
+              }
+            >
+              <IconMultiSelect />
+              {selectMode ? 'Auswahl beenden' : 'Mehrfachauswahl'}
+            </button>
             {layout === 'tablet' && !sidebarOpen && (
               <button className="tool-btn bom-btn" onClick={() => setBomOpen(true)}>
                 <IconList />
@@ -767,7 +679,6 @@ export function App() {
                 armed={!!armedPartId}
                 selectMode={selectMode}
                 touchPan={touchUi}
-                slotZone={slot}
                 style={zoom.size}
                 onPartPointerDown={handlePartPointerDown}
                 onPartTap={handlePartTap}
@@ -803,13 +714,11 @@ export function App() {
           armedPartId={armedPartId}
           selectionCount={selectedUids.length}
           bomCount={project.placements.length}
-          slot={dockSlot}
           draggingFromCatalog={!!pointer?.dragging && !pointer.uid}
           properties={<PropertiesSection {...propertiesProps} />}
           bom={<BillOfMaterials project={project} />}
           onTilePointerDown={(partId, e) => beginPointer(partId, e)}
           onTileClick={handleChipClick}
-          onCloseSlot={() => setSlot(null)}
         />
       )}
 
