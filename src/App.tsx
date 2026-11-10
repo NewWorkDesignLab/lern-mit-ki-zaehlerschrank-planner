@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { getPart } from './catalog/parts';
 import { TEMPLATES, getTemplate } from './catalog/templates';
 import { BillOfMaterials } from './components/BillOfMaterials';
@@ -77,6 +77,8 @@ export function App() {
   const [armedPartId, setArmedPartId] = useState<string | null>(null);
   const [pointer, setPointer] = useState<Pointer | null>(null);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  /** Mausposition über dem Schrankbereich, solange ein Katalogteil zum Platzieren gewählt ist. */
+  const [armedCursor, setArmedCursor] = useState<{ x: number; y: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -443,7 +445,8 @@ export function App() {
   }, [pointer, armedPartId, hover, targetAt, groupPlanAt, overTrash, project.placements]);
 
   // --- Klick-Platzierung mit ausgewähltem Bibliotheksteil ------------------------
-  const handleCanvasClick = (clientX: number, clientY: number) => {
+  /** `once` (Shift+Klick): genau ein Teil platzieren und danach das Platzieren beenden. */
+  const handleCanvasClick = (clientX: number, clientY: number, once: boolean) => {
     if (suppressClick.current) return;
     if (!armedPartId) {
       // Im Auswahl-Modus hebt ein versehentliches Tippen daneben die Auswahl nicht auf.
@@ -451,7 +454,11 @@ export function App() {
       return;
     }
     const hit = targetAt(armedPartId, clientX, clientY);
-    if (!hit) return;
+    // Gehäuserand oder freie Fläche ohne Schiene: Platzieren beenden.
+    if (!hit) {
+      disarm();
+      return;
+    }
     if (!hit.target.valid) {
       notify('Dort ist kein Platz für dieses Bauteil.');
       return;
@@ -459,6 +466,7 @@ export function App() {
     const uid = newUid();
     dispatch({ type: 'ADD', uid, partId: armedPartId, ...hit.target });
     selectAdded(uid);
+    if (once) disarm();
   };
 
   // --- Aktionen ------------------------------------------------------------------
@@ -541,6 +549,7 @@ export function App() {
         setSelectedUids(project.placements.map((p) => p.uid));
       } else if (e.key === 'Escape') {
         setArmedPartId(null);
+        setArmedCursor(null);
         setSelectedUids([]);
         setSelectMode(false);
       } else if (selectedUids.length > 0 && (e.key === 'Delete' || e.key === 'Backspace')) {
@@ -569,10 +578,31 @@ export function App() {
 
   const dragPart = pointer?.dragging ? getPart(pointer.partId) : undefined;
 
+  function disarm() {
+    setArmedPartId(null);
+    setArmedCursor(null);
+    setToast(null);
+  }
+
   const handleChipClick = (partId: string) => {
     if (suppressClick.current) return;
-    setArmedPartId((cur) => (cur === partId ? null : partId));
+    if (armedPartId === partId) {
+      disarm();
+      return;
+    }
+    setArmedPartId(partId);
+    // Mit Maus steht der Hinweis zum Beenden am Mauszeiger (siehe armedPart unten).
   };
+
+  /** Rechtsklick / langes Drücken: kein Browser-Menü (außer in Eingabefeldern), beendet das Platzieren. */
+  const handleContextMenu = (e: ReactMouseEvent) => {
+    const t = e.target as HTMLElement;
+    if (t.closest('input, textarea, select')) return;
+    e.preventDefault();
+    if (armedPartId) disarm();
+  };
+
+  const armedPart = armedPartId && armedCursor && !pointer && previews.length === 0 ? getPart(armedPartId) : undefined;
 
   const propertiesProps = {
     template,
@@ -587,6 +617,7 @@ export function App() {
   return (
     <div
       className={`app layout-${layout} ${pointer?.dragging ? 'is-dragging' : ''} ${brushing ? 'is-brushing' : ''}`}
+      onContextMenu={handleContextMenu}
     >
       <Toolbar
         project={project}
@@ -627,7 +658,13 @@ export function App() {
         )}
 
         <section className="panel canvas-panel">
-          <div className="canvas-stage">
+          <div
+            className="canvas-stage"
+            onPointerMove={(e) => {
+              if (armedPartId && e.pointerType === 'mouse') setArmedCursor({ x: e.clientX, y: e.clientY });
+            }}
+            onPointerLeave={() => setArmedCursor(null)}
+          >
             {/* Werkzeug nur auf Touch-Geräten (CSS) – ersetzt Strg+Klick und den Maus-Pinsel. */}
             <button
               className={`tool-btn touch-only ${selectMode ? 'active' : ''}`}
@@ -667,7 +704,16 @@ export function App() {
             )}
             <TrashZone side="left" ref={trashLeft} active={draggingPlaced} hot={trashHot} />
             <TrashZone side="right" ref={trashRight} active={draggingPlaced} hot={trashHot} />
-            <div ref={scrollRef} className="canvas-scroll">
+            <div
+              ref={scrollRef}
+              className="canvas-scroll"
+              onClick={(e) => {
+                // Klick neben den Schrank: Platzieren beenden bzw. Auswahl aufheben.
+                if (e.target !== e.currentTarget || suppressClick.current) return;
+                if (armedPartId) disarm();
+                else if (!selectMode) setSelectedUids([]);
+              }}
+            >
               <CabinetCanvas
                 svgRef={svgRef}
                 project={project}
@@ -687,6 +733,7 @@ export function App() {
                 onHover={setHover}
                 onDuplicate={duplicate}
                 onRemove={remove}
+                onRemoveMany={removeMany}
               />
             </div>
           </div>
@@ -734,6 +781,19 @@ export function App() {
               : trashHot
                 ? `${dragPart.name} entfernen`
                 : dragPart.name}
+          </span>
+        </div>
+      )}
+
+      {armedPart && armedCursor && (
+        // Gewähltes Katalogteil hängt am Mauszeiger, solange es nirgends einrastet.
+        <div className="drag-ghost armed-ghost" style={{ left: armedCursor.x, top: armedCursor.y }}>
+          <span className="drag-ghost-part">
+            <PartThumb part={armedPart} size={52} />
+          </span>
+          <span className="drag-ghost-label">
+            {armedPart.name}
+            <small>Esc oder Rechtsklick beendet</small>
           </span>
         </div>
       )}

@@ -43,11 +43,13 @@ interface Props {
   /** Tippen/Klicken auf ein Bauteil ohne Ziehen. */
   onPartTap: (uid: string) => void;
   onBackgroundPointerDown: (e: ReactPointerEvent) => void;
-  onBackgroundClick: (clientX: number, clientY: number) => void;
+  /** `shiftKey`: beim Klick-Platzieren nur ein Teil setzen (siehe App). */
+  onBackgroundClick: (clientX: number, clientY: number, shiftKey: boolean) => void;
   /** Mausposition über dem Schrank (für die Vorschau beim Klick-Platzieren). */
   onHover: (pos: { x: number; y: number } | null) => void;
   onDuplicate: (uid: string) => void;
   onRemove: (uid: string) => void;
+  onRemoveMany: (uids: string[]) => void;
 }
 
 export function CabinetCanvas({
@@ -69,6 +71,7 @@ export function CabinetCanvas({
   onHover,
   onDuplicate,
   onRemove,
+  onRemoveMany,
 }: Props) {
   // mm pro Bildschirmpixel – damit die Bedienknöpfe unabhängig vom Zoom gleich groß sind.
   const [mmPerPx, setMmPerPx] = useState(1);
@@ -99,7 +102,7 @@ export function CabinetCanvas({
       viewBox={`0 0 ${geo.width} ${geo.height}`}
       xmlns="http://www.w3.org/2000/svg"
       onPointerDown={onBackgroundPointerDown}
-      onClick={(e) => onBackgroundClick(e.clientX, e.clientY)}
+      onClick={(e) => onBackgroundClick(e.clientX, e.clientY, e.shiftKey)}
       onPointerMove={(e) => onHover({ x: e.clientX, y: e.clientY })}
       onPointerLeave={() => onHover(null)}
     >
@@ -119,6 +122,15 @@ export function CabinetCanvas({
 
       {selected && movingUids.length === 0 && (
         <SelectionTools placement={selected} geo={geo} k={mmPerPx} onDuplicate={onDuplicate} onRemove={onRemove} />
+      )}
+
+      {selectedUids.length > 1 && movingUids.length === 0 && (
+        <GroupTools
+          placements={project.placements.filter((p) => selectedSet.has(p.uid))}
+          geo={geo}
+          k={mmPerPx}
+          onRemoveMany={onRemoveMany}
+        />
       )}
 
       {previews.map((preview, i) => (
@@ -308,6 +320,51 @@ function bmkLabelY(box: NonNullable<ReturnType<typeof partBox>>): number {
   return box.kind === 'meter' ? box.z.y + box.z.h - 8 : box.z.y + box.z.h - 6;
 }
 
+/** Runder Bedienknopf im Schrank; Größen in Bildschirmpixeln, umgerechnet mit k = mm/px. */
+function ToolButton({
+  cx,
+  cy,
+  k,
+  title,
+  fill,
+  onPress,
+  children,
+}: {
+  cx: number;
+  cy: number;
+  k: number;
+  title: string;
+  fill: string;
+  onPress: () => void;
+  children: JSX.Element;
+}) {
+  return (
+    <g
+      className="sel-tool"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onPress();
+      }}
+    >
+      <title>{title}</title>
+      <circle cx={cx} cy={cy} r={12 * k} fill={fill} stroke="#ffffff" strokeWidth={2 * k} />
+      <g
+        transform={`translate(${cx} ${cy}) scale(${k})`}
+        stroke="#ffffff"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      >
+        {children}
+      </g>
+    </g>
+  );
+}
+
+const ICON_REMOVE = <path d="M -4.5 -4.5 L 4.5 4.5 M 4.5 -4.5 L -4.5 4.5" />;
+
 /**
  * Knöpfe am gewählten Bauteil: Duplizieren oberhalb, Entfernen (rot) unterhalb
  * der Beschriftung – bewusst weit auseinander, damit man sich nicht verklickt.
@@ -331,54 +388,58 @@ function SelectionTools({
   const box = partBox(geo, part, placement.field, placement.zone, placement.te);
   if (!box) return null;
 
-  const r = 12 * k;
   const cx = box.x + box.w / 2;
   const dupY = box.y - 16 * k;
   const delY = Math.max(box.y + box.h, bmkLabelY(box)) + 18 * k;
 
-  const button = (cy: number, title: string, fill: string, onPress: () => void, icon: JSX.Element) => (
-    <g
-      className="sel-tool"
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        e.stopPropagation();
-        onPress();
-      }}
-    >
-      <title>{title}</title>
-      <circle cx={cx} cy={cy} r={r} fill={fill} stroke="#ffffff" strokeWidth={2 * k} />
-      <g
-        transform={`translate(${cx} ${cy}) scale(${k})`}
-        stroke="#ffffff"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      >
-        {icon}
-      </g>
-    </g>
-  );
-
   return (
     <g data-noexport="">
-      {button(
-        dupY,
-        'Duplizieren',
-        '#d97706',
-        () => onDuplicate(placement.uid),
+      <ToolButton cx={cx} cy={dupY} k={k} title="Duplizieren" fill="#d97706" onPress={() => onDuplicate(placement.uid)}>
         <>
           <rect x={-5.5} y={-2.5} width={8} height={8} rx={1.5} />
           <path d="M -2.5 -2.5 V -5.5 H 5.5 V 2.5 H 2.5" />
-        </>,
-      )}
-      {button(
-        delY,
-        'Entfernen',
-        '#dc2626',
-        () => onRemove(placement.uid),
-        <path d="M -4.5 -4.5 L 4.5 4.5 M 4.5 -4.5 L -4.5 4.5" />,
-      )}
+        </>
+      </ToolButton>
+      <ToolButton cx={cx} cy={delY} k={k} title="Entfernen" fill="#dc2626" onPress={() => onRemove(placement.uid)}>
+        {ICON_REMOVE}
+      </ToolButton>
+    </g>
+  );
+}
+
+/** Mehrfachauswahl: ein roter Entfernen-Knopf mittig unter allen gewählten Bauteilen. */
+function GroupTools({
+  placements,
+  geo,
+  k,
+  onRemoveMany,
+}: {
+  placements: Placement[];
+  geo: CabinetGeo;
+  k: number;
+  onRemoveMany: (uids: string[]) => void;
+}) {
+  const boxes = placements.flatMap((p) => {
+    const part = getPart(p.partId);
+    const box = part && partBox(geo, part, p.field, p.zone, p.te);
+    return box ? [box] : [];
+  });
+  if (boxes.length === 0) return null;
+  const left = Math.min(...boxes.map((b) => b.x));
+  const right = Math.max(...boxes.map((b) => b.x + b.w));
+  const bottom = Math.max(...boxes.map((b) => Math.max(b.y + b.h, bmkLabelY(b))));
+  return (
+    <g data-noexport="">
+      <ToolButton
+        cx={(left + right) / 2}
+        cy={bottom + 18 * k}
+        k={k}
+        title={`${placements.length} Bauteile entfernen`}
+        fill="#dc2626"
+        onPress={() => onRemoveMany(placements.map((p) => p.uid))}
+      >
+        {ICON_REMOVE}
+      </ToolButton>
     </g>
   );
 }
