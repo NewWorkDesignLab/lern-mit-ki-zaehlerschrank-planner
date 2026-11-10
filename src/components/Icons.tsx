@@ -37,6 +37,14 @@ export const IconRedo = () => (
   </Icon>
 );
 
+/** Tastatur: Rahmen mit Tastenreihen und Leertaste. */
+export const IconKeyboard = () => (
+  <Icon>
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12.5h.01M10 12.5h.01M14 12.5h.01M18 12.5h.01M8 16h8" />
+  </Icon>
+);
+
 /** Leeres Blatt mit Plus. */
 export const IconNew = () => (
   <Icon>

@@ -8,6 +8,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { CATALOG, CATEGORY_LABEL, CATEGORY_ORDER, MANUFACTURERS } from '../catalog/parts';
 import type { CatalogPart } from '../domain/types';
 import { formatTe } from './CabinetCanvas';
+import { IconKeyboard } from './Icons';
 import { PartThumb } from './PartGraphic';
 
 interface Props {
@@ -36,12 +37,14 @@ export function Library({ armedPartId, onChipPointerDown, onChipClick, onShowSho
   const [manufacturer, setManufacturer] = useState('');
   const [query, setQuery] = useState('');
 
-  const groups = useMemo(() => {
-    const list = filterCatalog(manufacturer, query);
-    return CATEGORY_ORDER.map((cat) => ({ cat, items: list.filter((p) => p.category === cat) })).filter(
-      (g) => g.items.length > 0,
-    );
-  }, [manufacturer, query]);
+  const found = useMemo(() => filterCatalog(manufacturer, query), [manufacturer, query]);
+  const groups = useMemo(
+    () =>
+      CATEGORY_ORDER.map((cat) => ({ cat, items: found.filter((p) => p.category === cat) })).filter(
+        (g) => g.items.length > 0,
+      ),
+    [found],
+  );
 
   return (
     <aside className="panel library">
@@ -81,13 +84,17 @@ export function Library({ armedPartId, onChipPointerDown, onChipClick, onShowSho
         ))}
       </div>
 
-      {onShowShortcuts && (
-        <div className="library-foot">
-          <button className="btn small" onClick={onShowShortcuts} title="Maus- und Tastenkürzel anzeigen (?)">
+      <div className="library-foot">
+        {onShowShortcuts && (
+          <button className="btn ghost small" onClick={onShowShortcuts} title="Maus- und Tastenkürzel anzeigen (?)">
+            <IconKeyboard />
             Steuerung
           </button>
-        </div>
-      )}
+        )}
+        <span className="library-count">
+          {found.length === CATALOG.length ? `${CATALOG.length} Bauteile` : `${found.length} von ${CATALOG.length}`}
+        </span>
+      </div>
     </aside>
   );
 }

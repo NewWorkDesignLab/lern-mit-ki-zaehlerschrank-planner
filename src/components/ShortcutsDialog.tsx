@@ -21,7 +21,9 @@ const k = (...keys: string[]) => (
   </>
 );
 
-const GROUPS: { title: string; rows: [ReactNode, string][] }[] = [
+type Group = { title: string; rows: [ReactNode, string][] };
+
+const GROUPS: Group[] = [
   {
     title: 'Platzieren',
     rows: [
@@ -67,6 +69,13 @@ const GROUPS: { title: string; rows: [ReactNode, string][] }[] = [
   },
 ];
 
+/** Zwei etwa gleich hohe Spalten: links Platzieren, Bewegen, Löschen – rechts Auswählen, Verlauf. */
+const [PLACE, MOVE, SELECT, DELETE, HISTORY] = GROUPS;
+const COLUMNS = [
+  [PLACE, MOVE, DELETE],
+  [SELECT, HISTORY],
+];
+
 export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -78,19 +87,26 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
     <div className="overlay" onClick={onClose}>
       <div className="dialog shortcuts" role="dialog" aria-label="Steuerung" onClick={(e) => e.stopPropagation()}>
         <h2>Steuerung</h2>
-        {GROUPS.map((g) => (
-          <section key={g.title} className="shortcuts-group">
-            <h3>{g.title}</h3>
-            <dl>
-              {g.rows.map(([keys, label], i) => (
-                <div key={i} className="shortcuts-row">
-                  <dt>{keys}</dt>
-                  <dd>{label}</dd>
-                </div>
+        <p className="muted">Maus- und Tastenkürzel für den Schrank-Editor.</p>
+        <div className="shortcuts-cols">
+          {COLUMNS.map((groups, c) => (
+            <div key={c} className="shortcuts-col">
+              {groups.map((g) => (
+                <section key={g.title} className="shortcuts-group">
+                  <h3>{g.title}</h3>
+                  <dl>
+                    {g.rows.map(([keys, label], i) => (
+                      <div key={i} className="shortcuts-row">
+                        <dt>{keys}</dt>
+                        <dd>{label}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
               ))}
-            </dl>
-          </section>
-        ))}
+            </div>
+          ))}
+        </div>
         <div className="dialog-actions">
           <button className="btn primary" onClick={onClose}>
             Schließen
