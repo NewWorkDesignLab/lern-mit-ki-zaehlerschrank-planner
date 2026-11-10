@@ -51,6 +51,8 @@ interface Brush {
   /** Auswahl vor dem Pinselstrich (bei Strg/Shift wird ergänzt, sonst ersetzt). */
   base: string[];
   hits: Set<string>;
+  /** Auf diesem Bauteil begonnen: ohne Wischen (reines Antippen) wird es hinzugewählt. */
+  tapUid?: string;
 }
 
 /** Abstand (px) der Prüfpunkte zwischen zwei Mauspositionen beim Pinseln. */
@@ -231,7 +233,8 @@ export function App() {
         // Gewähltes Teil: Ziehen bewegt die Auswahl, Tippen wählt es ab.
         beginPointer(p.partId, e, uid, selectedUids, true);
       } else {
-        setSelectedUids((s) => [...s, uid]);
+        // Wischen pinselt wie auf leerer Fläche; nur reines Antippen wählt dieses Teil hinzu.
+        startBrush(e, uid);
       }
       return;
     }
@@ -354,10 +357,7 @@ export function App() {
   }, [pointer, targetAt, groupPlanAt, dispatch, notify, overTrash, compact, undoHint]);
 
   // --- Auswahl-Pinsel ------------------------------------------------------------
-  const beginBrush = (e: ReactPointerEvent) => {
-    if (e.button !== 0 || armedPartId) return;
-    // Auf Touch scrollt Wischen den Schrank – gepinselt wird nur im Auswahl-Modus.
-    if (e.pointerType === 'touch' && !selectMode) return;
+  const startBrush = (e: ReactPointerEvent, tapUid?: string) => {
     brushRef.current = {
       startX: e.clientX,
       startY: e.clientY,
@@ -365,8 +365,16 @@ export function App() {
       active: false,
       base: isMod(e) || selectMode ? selectedUids : [],
       hits: new Set(),
+      tapUid,
     };
     setBrushPoints([]);
+  };
+
+  const beginBrush = (e: ReactPointerEvent) => {
+    if (e.button !== 0 || armedPartId) return;
+    // Auf Touch scrollt Wischen den Schrank – gepinselt wird nur im Auswahl-Modus.
+    if (e.pointerType === 'touch' && !selectMode) return;
+    startBrush(e);
   };
 
   const brushing = brushPoints !== null;
@@ -398,10 +406,16 @@ export function App() {
       const pts = first ? [{ x: b.startX, y: b.startY }, b.last] : [b.last];
       setBrushPoints((cur) => [...(cur ?? []), ...pts]);
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
       const b = brushRef.current;
       brushRef.current = null;
       setBrushPoints(null);
+      // Auf einem Bauteil angetippt, ohne zu wischen: dieses hinzuwählen.
+      const tapUid = b?.tapUid;
+      if (tapUid && !b.active && e.type === 'pointerup') {
+        setSelectedUids((s) => (s.includes(tapUid) ? s : [...s, tapUid]));
+        return;
+      }
       if (b?.active) {
         // Den Klick nach dem Pinselstrich nicht als "Auswahl aufheben" werten.
         suppressClick.current = true;
