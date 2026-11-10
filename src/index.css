@@ -573,13 +573,6 @@ textarea:focus {
   color: var(--text-1);
 }
 
-.library-hint {
-  margin: 10px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text-2);
-}
-
 /* --- Schrank -------------------------------------------------------------- */
 
 .canvas-panel {
@@ -1128,6 +1121,46 @@ textarea:focus {
   flex: 1;
   min-width: 0;
   font-size: 12px;
+}
+
+.shortcuts-group h3 {
+  margin: 12px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+.shortcuts-group dl {
+  margin: 0;
+}
+
+.shortcuts-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.shortcuts-row + .shortcuts-row {
+  border-top: 1px solid var(--panel-border);
+}
+
+.shortcuts-row dt {
+  color: var(--text-1);
+}
+
+.shortcuts-row dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.library-foot {
+  display: flex;
+  margin-top: 10px;
 }
 
 .dialog-actions {

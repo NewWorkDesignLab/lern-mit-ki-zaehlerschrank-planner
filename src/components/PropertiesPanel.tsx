@@ -92,10 +92,8 @@ export function PropertiesSection({
         </p>
       ) : (
         <p className="muted">
-          Ein Bauteil im Schrank anklicken, um BMK, Notiz und technische Daten zu sehen. Verschieben per Ziehen oder mit{' '}
-          <kbd>←</kbd>/<kbd>→</kbd>; löschen mit <kbd>Entf</kbd>, dem roten × oder durch Ziehen in eine der roten
-          Flächen, die beim Ziehen neben dem Schrank erscheinen. Mehrere Bauteile wählen: auf leerer Fläche klicken
-          und mit gedrückter Maustaste darüberfahren.
+          Ein Bauteil im Schrank anklicken, um BMK, Notiz und technische Daten zu sehen. Alle Maus- und Tastenkürzel
+          unter „Steuerung“ links unten oder mit <kbd>?</kbd>.
         </p>
       )}
     </section>
@@ -121,8 +119,8 @@ function MultiSelection({ selection, touch }: { selection: Placement[]; touch?: 
         </p>
       ) : (
         <p className="muted">
-          Gemeinsam verschieben: ein gewähltes Bauteil ziehen oder <kbd>←</kbd>/<kbd>→</kbd>. Mit <kbd>Strg</kbd>+Klick
-          einzelne Bauteile hinzufügen oder abwählen, <kbd>Esc</kbd> oder Rechtsklick hebt die Auswahl auf.
+          Gemeinsam verschieben: ein gewähltes Bauteil ziehen oder <kbd>←</kbd>/<kbd>→</kbd>. Weitere Kürzel unter
+          „Steuerung“ (<kbd>?</kbd>).
         </p>
       )}
     </div>

@@ -14,6 +14,8 @@ interface Props {
   armedPartId: string | null;
   onChipPointerDown: (partId: string, e: ReactPointerEvent) => void;
   onChipClick: (partId: string) => void;
+  /** Gesetzt nur am Desktop – zeigt den Knopf „Steuerung“. */
+  onShowShortcuts?: () => void;
 }
 
 /** Katalog nach Hersteller und Suchbegriff filtern (auch fürs Katalog-Dock). */
@@ -30,7 +32,7 @@ export function filterCatalog(manufacturer: string, query: string): CatalogPart[
   );
 }
 
-export function Library({ armedPartId, onChipPointerDown, onChipClick }: Props) {
+export function Library({ armedPartId, onChipPointerDown, onChipClick, onShowShortcuts }: Props) {
   const [manufacturer, setManufacturer] = useState('');
   const [query, setQuery] = useState('');
 
@@ -79,11 +81,13 @@ export function Library({ armedPartId, onChipPointerDown, onChipClick }: Props) 
         ))}
       </div>
 
-      <p className="library-hint">
-        Bauteil in den Schrank <b>ziehen</b> – oder <b>anklicken</b> und dann auf eine Hutschiene
-        klicken (mehrfach möglich; Rechtsklick, <kbd>Esc</kbd> oder daneben klicken beendet). Technische Daten sind Beispieldaten –
-        vor dem Aufbau mit dem Datenblatt abgleichen.
-      </p>
+      {onShowShortcuts && (
+        <div className="library-foot">
+          <button className="btn small" onClick={onShowShortcuts} title="Maus- und Tastenkürzel anzeigen (?)">
+            Steuerung
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

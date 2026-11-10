@@ -11,6 +11,7 @@ import { Library } from './components/Library';
 import { PartThumb } from './components/PartGraphic';
 import { PropertiesPanel, PropertiesSection } from './components/PropertiesPanel';
 import { ShareDialog } from './components/ShareDialog';
+import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { Toolbar } from './components/Toolbar';
 import { computeGeometry } from './domain/geometry';
 import { canPlace, firstFreeSpot, planGroupMove, railZones, rangeBetween, retainFitting } from './domain/layout';
@@ -81,6 +82,8 @@ export function App() {
   const [armedCursor, setArmedCursor] = useState<{ x: number; y: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  /** Desktop: Übersicht der Maus- und Tastenkürzel. */
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   /** Tablet: Seitenleiste mit Stückliste auch ohne Auswahl eingeblendet. */
   const [bomOpen, setBomOpen] = useState(false);
@@ -565,7 +568,9 @@ export function App() {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === 'z') {
+      if (e.key === '?' && !touchUi) {
+        setShortcutsOpen((v) => !v);
+      } else if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         dispatch({ type: e.shiftKey ? 'REDO' : 'UNDO' });
       } else if (mod && e.key.toLowerCase() === 'y') {
@@ -601,7 +606,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dispatch, selected, selectedUids, remove, removeMany, template, project.placements]);
+  }, [dispatch, selected, selectedUids, remove, removeMany, template, project.placements, touchUi]);
 
   const dragPart = pointer?.dragging ? getPart(pointer.partId) : undefined;
 
@@ -687,6 +692,7 @@ export function App() {
             armedPartId={armedPartId}
             onChipPointerDown={(partId, e) => beginPointer(partId, e)}
             onChipClick={handleChipClick}
+            onShowShortcuts={touchUi ? undefined : () => setShortcutsOpen(true)}
           />
         )}
 
@@ -839,6 +845,7 @@ export function App() {
       )}
 
       {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
+      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
     </div>
   );
 }
