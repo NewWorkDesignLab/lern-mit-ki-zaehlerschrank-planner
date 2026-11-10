@@ -300,6 +300,96 @@ kbd {
   background: rgba(255, 247, 237, 0.6);
 }
 
+/* --- Geführter Export (Export ohne Namen angestoßen) ----------------------- */
+
+/* Kopfzeile bleibt hell über der abgedunkelten Fläche */
+.toolbar.is-guided {
+  position: relative;
+  z-index: 91;
+}
+
+.guide-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90; /* unter Dialogen (100) und Toasts (120) */
+  background: rgba(15, 23, 42, 0.45);
+  animation: scrim-in 0.2s ease-out both;
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Platz für den Export-Chip rechts im Feld */
+.toolbar.is-guided:not(.compact) .project-name {
+  padding-right: 84px;
+}
+
+.name-export-chip {
+  position: absolute;
+  /* an der Feldmitte ausrichten – auch wenn die Sprechblase darunter im Fluss steht */
+  top: calc(var(--control-h) / 2);
+  right: 5px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: calc(var(--control-h) - 10px);
+  padding: 0 9px;
+  border: 1px solid var(--accent-strong);
+  border-radius: 6px;
+  background: var(--accent-strong);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.name-export-chip:hover {
+  background: var(--accent-strong-hover);
+  border-color: var(--accent-strong-hover);
+}
+
+/* Noch kein Name: blasser Platzhalter-Chip */
+.name-export-chip.is-idle {
+  background: transparent;
+  border-color: rgba(217, 119, 6, 0.35);
+  color: var(--accent-text);
+  opacity: 0.7;
+  cursor: default;
+}
+
+/* Export-Button „In Arbeit …“: sanft pulsierender Rand */
+.btn.primary.is-waiting {
+  animation: waiting-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes waiting-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(217, 119, 6, 0);
+  }
+}
+
+.quick-export.is-idle {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-scrim,
+  .btn.primary.is-waiting {
+    animation: none;
+  }
+}
+
 .project-name::placeholder {
   font-weight: 400;
   color: var(--text-2);

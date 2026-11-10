@@ -3,10 +3,19 @@
 // Kompakt (Handy / Tablet hoch): eine Zeile, Datei & Export im ⋯-Menü.
 // ---------------------------------------------------------------------------
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { TEMPLATES } from '../catalog/templates';
-import type { Project } from '../domain/types';
-import { IconImage, IconMore, IconNew, IconOpen, IconRedo, IconSave, IconShare, IconUndo } from './Icons';
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { TEMPLATES } from "../catalog/templates";
+import type { Project } from "../domain/types";
+import {
+  IconImage,
+  IconMore,
+  IconNew,
+  IconOpen,
+  IconRedo,
+  IconSave,
+  IconShare,
+  IconUndo,
+} from "./Icons";
 
 interface Props {
   project: Project;
@@ -30,9 +39,25 @@ export function Toolbar(props: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const template = TEMPLATES.find((t) => t.id === project.templateId);
-  const needsName = project.name.trim() === '';
-  // Zähler statt Boolean: jeder Klick startet die Wackel-Animation neu (key-Wechsel).
+  const needsName = project.name.trim() === "";
+  // Geführter Export: Export ohne Namen angestoßen – Fläche abgedunkelt, Name
+  // eintippen, Enter (oder Chip / Quick-Export) setzt den Export fort.
+  const [guided, setGuided] = useState(false);
+  // Zähler statt Boolean: jeder Versuch startet die Wackel-Animation neu (key-Wechsel).
   const [nudge, setNudge] = useState(0);
+
+  // Esc bricht den geführten Export ab.
+  useEffect(() => {
+    if (!guided) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setGuided(false);
+        nameRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [guided]);
 
   // Bricht die Kopfzeile um, läge die schwebende Sprechblase über den Buttons der
   // nächsten Zeile – dann wird sie in den Fluss gesetzt (siehe .toolbar.is-wrapped).
@@ -57,11 +82,15 @@ export function Toolbar(props: Props) {
   }, [props.compact]);
 
   const handleExport = () => {
+    if (props.exporting) return;
     if (needsName) {
-      nameRef.current?.focus();
+      setGuided(true);
       setNudge((n) => n + 1);
+      nameRef.current?.focus();
       return;
     }
+    setGuided(false);
+    nameRef.current?.blur();
     props.onExportPng();
   };
 
@@ -74,7 +103,7 @@ export function Toolbar(props: Props) {
       onChange={(e) => {
         const file = e.target.files?.[0];
         if (file) props.onOpen(file);
-        e.target.value = '';
+        e.target.value = "";
       }}
     />
   );
@@ -82,30 +111,79 @@ export function Toolbar(props: Props) {
   const nameInput = (
     <input
       ref={nameRef}
-      className={`project-name ${needsName ? 'needs-name' : ''}`}
+      className={`project-name ${needsName ? "needs-name" : ""}`}
       value={project.name}
       onChange={(e) => props.onRename(e.target.value)}
-      placeholder="Unbenanntes Projekt"
+      onKeyDown={(e) => {
+        // Im geführten Export: Name tippen, Enter – weiter geht's.
+        if (!guided || e.key !== "Enter" || e.nativeEvent.isComposing) return;
+        e.preventDefault();
+        handleExport();
+      }}
+      enterKeyHint={guided ? "go" : "done"}
+      placeholder="Zählerschrank benennen"
       title="Projektname, z. B. EFH Musterstraße 12"
       aria-label="Projektname"
-      aria-describedby={needsName ? 'name-hint' : undefined}
+      aria-describedby={guided && needsName ? "name-hint" : undefined}
     />
   );
 
-  const nameHint = needsName && (
+  // Desktop: kleiner Export-Chip rechts im Feld, nur im geführten Export.
+  const exportChip = guided && !props.compact && (
+    <button
+      type="button"
+      className={`name-export-chip ${needsName ? "is-idle" : ""}`}
+      // Fokus im Namensfeld lassen
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={handleExport}
+      tabIndex={-1}
+      title="Exportieren (Enter)"
+      aria-label="Exportieren"
+    >
+      <span aria-hidden="true">↵</span>
+      {!needsName && " Export"}
+    </button>
+  );
+
+  // Erscheint nur im geführten Export, solange der Name noch fehlt.
+  const nameHint = guided && needsName && (
     <div
       key={nudge}
       id="name-hint"
-      className={`name-hint ${nudge > 0 ? 'is-nudged' : ''}`}
-      role={nudge > 0 ? 'alert' : undefined}
+      className="name-hint is-nudged"
+      role="alert"
     >
       <strong>Gib deinem Projekt einen Namen</strong>
       <span>
-        {nudge > 0
-          ? 'Vor dem Export bitte einen Namen festlegen – er erscheint im Belegungsplan.'
-          : 'Er erscheint später im Belegungsplan.'}
+        Er erscheint im Belegungsplan – danach geht der Export direkt weiter.
       </span>
     </div>
+  );
+
+  // Mobil: Quick-Export ersetzt im geführten Export Rückgängig/Wiederholen.
+  const quickExport = (
+    <button
+      className={`btn icon primary quick-export ${needsName ? "is-idle" : ""}`}
+      onPointerDown={(e) => e.preventDefault()}
+      onClick={handleExport}
+      aria-label="Exportieren"
+      title="Exportieren"
+    >
+      <IconImage />
+    </button>
+  );
+
+  // Abgedunkelte Fläche unterhalb der Kopfzeile; Klick bricht ab.
+  const scrim = guided && (
+    <div
+      className="guide-scrim"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        setGuided(false);
+        nameRef.current?.blur();
+      }}
+      aria-hidden="true"
+    />
   );
 
   const templateSelect = (
@@ -148,80 +226,129 @@ export function Toolbar(props: Props) {
 
   if (props.compact) {
     return (
-      <header className="toolbar compact">
-        <img className="brand-logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={28} height={28} />
-        <div className="project-name-wrap">
-          {nameInput}
-          {/* Kompakt nur beim Export-Versuch – sonst reicht die orange Kontur. */}
-          {nudge > 0 && nameHint}
-        </div>
-        {undoRedo}
-        <CompactMenu
-          templateSelect={templateSelect}
-          exporting={props.exporting}
-          onNew={props.onNew}
-          onOpen={() => fileRef.current?.click()}
-          onSave={props.onSave}
-          onShare={props.onShare}
-          onExport={handleExport}
-        />
-        {fileInput}
-      </header>
+      <>
+        <header className={`toolbar compact ${guided ? "is-guided" : ""}`}>
+          <img
+            className="brand-logo"
+            src={`${import.meta.env.BASE_URL}favicon.svg`}
+            alt=""
+            width={28}
+            height={28}
+          />
+          <div className="project-name-wrap">
+            {nameInput}
+            {nameHint}
+          </div>
+          {guided ? quickExport : undoRedo}
+          <CompactMenu
+            templateSelect={templateSelect}
+            exporting={props.exporting}
+            onNew={props.onNew}
+            onOpen={() => fileRef.current?.click()}
+            onSave={props.onSave}
+            onShare={props.onShare}
+            onExport={handleExport}
+          />
+          {fileInput}
+        </header>
+        {scrim}
+      </>
     );
   }
 
   return (
-    <header ref={headerRef} className={`toolbar ${wrapped ? 'is-wrapped' : ''}`}>
-      <div className="brand">
-        <img className="brand-logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={32} height={32} />
-        <span className="brand-name">Zählerschrank-Planer</span>
-      </div>
-
-      <div ref={projectRef} className="toolbar-project">
-        <span className="crumb-sep" aria-hidden="true">
-          /
-        </span>
-        <div className="project-name-wrap">
-          {nameInput}
-          {nameHint}
+    <>
+      <header
+        ref={headerRef}
+        className={`toolbar ${wrapped ? "is-wrapped" : ""} ${guided ? "is-guided" : ""}`}
+      >
+        <div className="brand">
+          <img
+            className="brand-logo"
+            src={`${import.meta.env.BASE_URL}favicon.svg`}
+            alt=""
+            width={32}
+            height={32}
+          />
+          <span className="brand-name">Zählerschrank-Planer</span>
         </div>
-        {templateSelect}
-      </div>
 
-      <div ref={actionsRef} className="toolbar-actions">
-        {undoRedo}
-        <span className="sep" />
-        <div className="btn-group" role="group" aria-label="Datei">
-          <button className="btn" onClick={props.onNew} title="Neues, leeres Projekt" aria-label="Neu">
-            <IconNew />
-            <span className="btn-label">Neu</span>
+        <div ref={projectRef} className="toolbar-project">
+          <span className="crumb-sep" aria-hidden="true">
+            /
+          </span>
+          <div className="project-name-wrap">
+            {nameInput}
+            {exportChip}
+            {nameHint}
+          </div>
+          {templateSelect}
+        </div>
+
+        <div ref={actionsRef} className="toolbar-actions">
+          {undoRedo}
+          <span className="sep" />
+          <div className="btn-group" role="group" aria-label="Datei">
+            <button
+              className="btn"
+              onClick={props.onNew}
+              title="Neues, leeres Projekt"
+              aria-label="Neu"
+            >
+              <IconNew />
+              <span className="btn-label">Neu</span>
+            </button>
+            <button
+              className="btn"
+              onClick={() => fileRef.current?.click()}
+              title="Gespeichertes Projekt öffnen"
+              aria-label="Öffnen"
+            >
+              <IconOpen />
+              <span className="btn-label">Öffnen</span>
+            </button>
+            <button
+              className="btn"
+              onClick={props.onSave}
+              title="Projekt als .json-Datei speichern"
+              aria-label="Speichern"
+            >
+              <IconSave />
+              <span className="btn-label">Speichern</span>
+            </button>
+          </div>
+          {fileInput}
+          <span className="sep" />
+          <button
+            className="btn"
+            onClick={props.onShare}
+            title="Link und QR-Code zum Projekt anzeigen"
+          >
+            <IconShare />
+            Teilen / QR
           </button>
-          <button className="btn" onClick={() => fileRef.current?.click()} title="Gespeichertes Projekt öffnen" aria-label="Öffnen">
-            <IconOpen />
-            <span className="btn-label">Öffnen</span>
-          </button>
-          <button className="btn" onClick={props.onSave} title="Projekt als .json-Datei speichern" aria-label="Speichern">
-            <IconSave />
-            <span className="btn-label">Speichern</span>
+          <button
+            className={`btn primary ${guided ? "is-waiting" : ""}`}
+            onMouseDown={(e) => guided && e.preventDefault()}
+            onClick={handleExport}
+            disabled={props.exporting}
+            title={
+              needsName
+                ? "Zuerst einen Projektnamen festlegen"
+                : "Schrankansicht als PNG-Bild speichern"
+            }
+          >
+            <IconImage />
+            {props.exporting
+              ? "Exportiere …"
+              : guided
+                ? "In Arbeit …"
+                : "Als Bild exportieren"}
           </button>
         </div>
-        {fileInput}
-        <span className="sep" />
-        <button className="btn" onClick={props.onShare} title="Link und QR-Code zum Projekt anzeigen">
-          <IconShare />
-          Teilen / QR
-        </button>
-        <button
-          className="btn primary"
-          onClick={handleExport}
-          disabled={props.exporting}
-          title={needsName ? 'Zuerst einen Projektnamen festlegen' : 'Schrankansicht als PNG-Bild speichern'}
-        >
-          <IconImage />
-          {props.exporting ? 'Exportiere …' : 'Als Bild exportieren'}
-        </button>
-      </div>
-    </header>
+      </header>
+      {scrim}
+    </>
   );
 }
 
@@ -242,11 +369,16 @@ function CompactMenu(props: {
     const close = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    window.addEventListener('pointerdown', close);
-    return () => window.removeEventListener('pointerdown', close);
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
   }, [open]);
 
-  const item = (label: string, icon: JSX.Element, onClick: () => void, cls = '') => (
+  const item = (
+    label: string,
+    icon: JSX.Element,
+    onClick: () => void,
+    cls = "",
+  ) => (
     <button
       className={`menu-item ${cls}`}
       role="menuitem"
@@ -263,7 +395,7 @@ function CompactMenu(props: {
   return (
     <div ref={ref} className="compact-menu">
       <button
-        className={`btn icon ${open ? 'active' : ''}`}
+        className={`btn icon ${open ? "active" : ""}`}
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -279,12 +411,17 @@ function CompactMenu(props: {
             {props.templateSelect}
           </label>
           <div className="menu-sep" />
-          {item('Neu', <IconNew />, props.onNew)}
-          {item('Öffnen', <IconOpen />, props.onOpen)}
-          {item('Speichern', <IconSave />, props.onSave)}
+          {item("Neu", <IconNew />, props.onNew)}
+          {item("Öffnen", <IconOpen />, props.onOpen)}
+          {item("Speichern", <IconSave />, props.onSave)}
           <div className="menu-sep" />
-          {item('Teilen / QR', <IconShare />, props.onShare)}
-          {item(props.exporting ? 'Exportiere …' : 'Als Bild exportieren', <IconImage />, props.onExport, 'primary')}
+          {item("Teilen / QR", <IconShare />, props.onShare)}
+          {item(
+            props.exporting ? "Exportiere …" : "Als Bild exportieren",
+            <IconImage />,
+            props.onExport,
+            "primary",
+          )}
         </div>
       )}
     </div>
