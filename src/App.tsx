@@ -202,8 +202,9 @@ export function App() {
     if (e.button !== 0) return;
     const p = project.placements.find((x) => x.uid === uid);
     if (!p) return;
+    partPointerType.current = e.pointerType;
     // Beim Platzieren mit gültiger Vorschau setzt der Klick (handlePartTap) das neue Teil.
-    if (armedPlacesAt(e.clientX, e.clientY)) return;
+    if (armedPlacesOnPart(e.clientX, e.clientY)) return;
     // Touch-Layout: nicht gewählte Teile erst antippen (Wischen scrollt den Schrank).
     if (touchUi && e.pointerType === 'touch' && !selectMode && !selectedUids.includes(uid)) return;
     setArmedPartId(null);
@@ -241,7 +242,7 @@ export function App() {
   };
 
   const handlePartTap = (uid: string, e: ReactMouseEvent) => {
-    if (armedPlacesAt(e.clientX, e.clientY)) {
+    if (armedPlacesOnPart(e.clientX, e.clientY)) {
       handleCanvasClick(e.clientX, e.clientY, e.shiftKey);
       return;
     }
@@ -458,6 +459,15 @@ export function App() {
   /** Gibt es an dieser Stelle einen gültigen (grünen) Platz für das gewählte Bibliotheksteil? */
   const armedPlacesAt = (clientX: number, clientY: number) =>
     !!armedPartId && !!targetAt(armedPartId, clientX, clientY)?.target.valid;
+
+  /** Zeigertyp des letzten Drückens auf ein platziertes Bauteil (der Klick danach kennt ihn nicht sicher). */
+  const partPointerType = useRef('');
+  /**
+   * Klick auf ein vorhandenes Bauteil platziert nur mit Maus/Stift das gewählte Teil daneben.
+   * Auf Touch beendet Antippen eines Bauteils das Platzieren und wählt es aus.
+   */
+  const armedPlacesOnPart = (clientX: number, clientY: number) =>
+    partPointerType.current !== 'touch' && armedPlacesAt(clientX, clientY);
 
   /** `once` (Shift+Klick): genau ein Teil platzieren und danach das Platzieren beenden. */
   const handleCanvasClick = (clientX: number, clientY: number, once: boolean) => {
