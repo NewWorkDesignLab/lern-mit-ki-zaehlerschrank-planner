@@ -122,7 +122,7 @@ function MultiSelection({ selection, touch }: { selection: Placement[]; touch?: 
       ) : (
         <p className="muted">
           Gemeinsam verschieben: ein gewähltes Bauteil ziehen oder <kbd>←</kbd>/<kbd>→</kbd>. Mit <kbd>Strg</kbd>+Klick
-          einzelne Bauteile hinzufügen oder abwählen, <kbd>Esc</kbd> hebt die Auswahl auf.
+          einzelne Bauteile hinzufügen oder abwählen, <kbd>Esc</kbd> oder Rechtsklick hebt die Auswahl auf.
         </p>
       )}
     </div>

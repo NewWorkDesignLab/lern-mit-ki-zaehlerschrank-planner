@@ -198,6 +198,8 @@ export function App() {
 
   const handlePartPointerDown = (uid: string, e: ReactPointerEvent) => {
     e.stopPropagation();
+    // Rechtsklick wählt nicht aus (er hebt die Auswahl auf, siehe handleContextMenu).
+    if (e.button !== 0) return;
     const p = project.placements.find((x) => x.uid === uid);
     if (!p) return;
     // Beim Platzieren mit gültiger Vorschau setzt der Klick (handlePartTap) das neue Teil.
@@ -609,12 +611,18 @@ export function App() {
     // Mit Maus steht der Hinweis zum Beenden am Mauszeiger (siehe armedPart unten).
   };
 
-  /** Rechtsklick / langes Drücken: kein Browser-Menü (außer in Eingabefeldern), beendet das Platzieren. */
+  /**
+   * Rechtsklick / langes Drücken: kein Browser-Menü (außer in Eingabefeldern).
+   * Rechtsklick mit der Maus beendet außerdem das Platzieren und hebt die Auswahl auf – überall.
+   * Langes Drücken auf Touch nicht, sonst ginge die Auswahl beim Festhalten vor dem Ziehen verloren.
+   */
   const handleContextMenu = (e: ReactMouseEvent) => {
     const t = e.target as HTMLElement;
     if (t.closest('input, textarea, select')) return;
     e.preventDefault();
-    if (armedPartId) disarm();
+    if ((e.nativeEvent as Partial<PointerEvent>).pointerType === 'touch') return;
+    disarm();
+    setSelectedUids([]);
   };
 
   const armedPart = armedPartId && armedCursor && !pointer && previews.length === 0 ? getPart(armedPartId) : undefined;
