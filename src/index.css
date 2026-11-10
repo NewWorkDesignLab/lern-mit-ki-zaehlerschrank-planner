@@ -1667,7 +1667,11 @@ textarea:focus {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  max-width: 100%;
   overflow: hidden;
+  /* Lange Wörter (z. B. „Hutschienenkupplung“) trennen statt über die Kachel ragen. */
+  hyphens: auto;
+  overflow-wrap: anywhere;
   font-size: 11.5px;
   font-weight: 600;
   line-height: 1.25;
