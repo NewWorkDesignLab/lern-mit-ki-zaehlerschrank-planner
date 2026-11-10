@@ -200,6 +200,8 @@ export function App() {
     e.stopPropagation();
     const p = project.placements.find((x) => x.uid === uid);
     if (!p) return;
+    // Beim Platzieren mit gültiger Vorschau setzt der Klick (handlePartTap) das neue Teil.
+    if (armedPlacesAt(e.clientX, e.clientY)) return;
     // Touch-Layout: nicht gewählte Teile erst antippen (Wischen scrollt den Schrank).
     if (touchUi && e.pointerType === 'touch' && !selectMode && !selectedUids.includes(uid)) return;
     setArmedPartId(null);
@@ -236,7 +238,11 @@ export function App() {
     beginPointer(p.partId, e, uid);
   };
 
-  const handlePartTap = (uid: string) => {
+  const handlePartTap = (uid: string, e: ReactMouseEvent) => {
+    if (armedPlacesAt(e.clientX, e.clientY)) {
+      handleCanvasClick(e.clientX, e.clientY, e.shiftKey);
+      return;
+    }
     if (suppressClick.current || selectMode || selectedUids.includes(uid)) return;
     // Nur relevant, wenn pointerdown die Auswahl ausgelassen hat (Touch, siehe oben).
     anchorRef.current = uid;
@@ -447,6 +453,10 @@ export function App() {
   }, [pointer, armedPartId, hover, targetAt, groupPlanAt, overTrash, project.placements]);
 
   // --- Klick-Platzierung mit ausgewähltem Bibliotheksteil ------------------------
+  /** Gibt es an dieser Stelle einen gültigen (grünen) Platz für das gewählte Bibliotheksteil? */
+  const armedPlacesAt = (clientX: number, clientY: number) =>
+    !!armedPartId && !!targetAt(armedPartId, clientX, clientY)?.target.valid;
+
   /** `once` (Shift+Klick): genau ein Teil platzieren und danach das Platzieren beenden. */
   const handleCanvasClick = (clientX: number, clientY: number, once: boolean) => {
     if (suppressClick.current) return;

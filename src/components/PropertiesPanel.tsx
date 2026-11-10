@@ -51,7 +51,8 @@ export function PropertiesSection({
 }: Omit<Props, 'project' | 'onClose' | 'className'>) {
   const [showInfo, setShowInfo] = useState(false);
   const selectedPart = selected ? getPart(selected.partId) : undefined;
-  const hasInfo = !!selectedPart && hasDetails(selectedPart);
+  // Touch: Herstellerangaben stehen immer unten, daher kein i-Button.
+  const hasInfo = !touch && !!selectedPart && hasDetails(selectedPart);
   return (
     <section className="panel props">
       <div className="panel-head">
@@ -80,6 +81,7 @@ export function PropertiesSection({
           placement={selected}
           template={template}
           showInfo={showInfo}
+          infoAtEnd={touch}
           onUpdate={onUpdate}
         />
       ) : touch ? (
@@ -135,11 +137,14 @@ function SelectedPart({
   placement,
   template,
   showInfo,
+  infoAtEnd,
   onUpdate,
 }: {
   placement: Placement;
   template: CabinetTemplate;
   showInfo: boolean;
+  /** Herstellerangaben immer zeigen, unter den technischen Daten (Touch). */
+  infoAtEnd?: boolean;
   onUpdate: Props['onUpdate'];
 }) {
   const part = getPart(placement.partId);
@@ -150,6 +155,34 @@ function SelectedPart({
     zone?.kind === 'rail'
       ? `${field.name} · ${zone.label} · TE ${formatTe(placement.te + 1)}–${formatTe(placement.te + part.widthTE)}`
       : `${field?.name} · ${zone?.label}`;
+
+  const infoBox = hasDetails(part) && (
+    <div className="info-box">
+      <b>Herstellerangaben</b>
+      <dl className="specs">
+        <dt>Hersteller</dt>
+        <dd>{part.manufacturer}</dd>
+        {part.articleNo && (
+          <>
+            <dt>Artikel-Nr.</dt>
+            <dd>{part.articleNo}</dd>
+          </>
+        )}
+        {Object.entries(part.details ?? {}).map(([k, v]) => (
+          <div key={k} className="specs-row">
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {part.datasheetUrl && (
+        <a href={part.datasheetUrl} target="_blank" rel="noreferrer">
+          Datenblatt öffnen
+        </a>
+      )}
+      <span className="info-note">Beispieldaten – vor dem Aufbau mit dem Datenblatt abgleichen.</span>
+    </div>
+  );
 
   return (
     <div className="props-body">
@@ -167,33 +200,7 @@ function SelectedPart({
         </div>
       </div>
 
-      {showInfo && hasDetails(part) && (
-        <div className="info-box">
-          <b>Herstellerangaben</b>
-          <dl className="specs">
-            <dt>Hersteller</dt>
-            <dd>{part.manufacturer}</dd>
-            {part.articleNo && (
-              <>
-                <dt>Artikel-Nr.</dt>
-                <dd>{part.articleNo}</dd>
-              </>
-            )}
-            {Object.entries(part.details ?? {}).map(([k, v]) => (
-              <div key={k} className="specs-row">
-                <dt>{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-          {part.datasheetUrl && (
-            <a href={part.datasheetUrl} target="_blank" rel="noreferrer">
-              Datenblatt öffnen
-            </a>
-          )}
-          <span className="info-note">Beispieldaten – vor dem Aufbau mit dem Datenblatt abgleichen.</span>
-        </div>
-      )}
+      {!infoAtEnd && showInfo && infoBox}
 
       <label className="field">
         <span>BMK</span>
@@ -227,6 +234,8 @@ function SelectedPart({
           </div>
         ))}
       </dl>
+
+      {infoAtEnd && infoBox}
     </div>
   );
 }

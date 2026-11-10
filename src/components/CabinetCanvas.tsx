@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import { useLayoutEffect, useState } from 'react';
-import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { getPart } from '../catalog/parts';
 import type { CabinetGeo, ZoneGeo } from '../domain/geometry';
 import { FRAME, PHOTO_MAX_H, RAIL_H, TE_MM, getZoneGeo } from '../domain/geometry';
@@ -41,7 +41,7 @@ interface Props {
   style?: CSSProperties;
   onPartPointerDown: (uid: string, e: ReactPointerEvent) => void;
   /** Tippen/Klicken auf ein Bauteil ohne Ziehen. */
-  onPartTap: (uid: string) => void;
+  onPartTap: (uid: string, e: ReactMouseEvent) => void;
   onBackgroundPointerDown: (e: ReactPointerEvent) => void;
   /** `shiftKey`: beim Klick-Platzieren nur ein Teil setzen (siehe App). */
   onBackgroundClick: (clientX: number, clientY: number, shiftKey: boolean) => void;
@@ -457,7 +457,7 @@ function PlacedPart({
   selected: boolean;
   ghost: boolean;
   onPointerDown: (uid: string, e: ReactPointerEvent) => void;
-  onTap: (uid: string) => void;
+  onTap: (uid: string, e: ReactMouseEvent) => void;
 }) {
   const part = getPart(placement.partId);
   if (!part) return null;
@@ -474,7 +474,7 @@ function PlacedPart({
       onPointerDown={(e) => onPointerDown(placement.uid, e)}
       onClick={(e) => {
         e.stopPropagation();
-        onTap(placement.uid);
+        onTap(placement.uid, e);
       }}
     >
       {/* Unsichtbare Trefferfläche über die volle Bauteilbreite */}
