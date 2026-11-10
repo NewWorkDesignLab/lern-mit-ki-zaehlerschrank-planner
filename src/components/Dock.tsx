@@ -8,7 +8,7 @@
 // Platzieren aus. Aufgeklappt wird die Leiste zum Raster mit Suche.
 // ---------------------------------------------------------------------------
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { CATEGORY_ORDER, MANUFACTURERS } from '../catalog/parts';
 import type { PartCategory } from '../domain/types';
@@ -120,10 +120,28 @@ function Catalog({
     return category ? sorted.filter((p) => p.category === category) : sorted;
   }, [found, category]);
 
+  /** Zuletzt angetipptes oder gezogenes Teil – bleibt beim Auf-/Zuklappen im Blick. */
+  const focusId = useRef<string | null>(null);
+
   // Neue Filter -> Leiste an den Anfang.
   useEffect(() => {
     stripRef.current?.scrollTo({ left: 0, top: 0 });
   }, [category, query, manufacturer]);
+
+  // Auf-/Zuklappen -> Leiste bzw. Raster zum gewählten Teil scrollen statt an den Anfang.
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    const id = armedPartId ?? focusId.current;
+    const tile = id ? strip?.querySelector<HTMLElement>(`[data-part="${CSS.escape(id)}"]`) : null;
+    if (!strip || !tile) return;
+    const s = strip.getBoundingClientRect();
+    const t = tile.getBoundingClientRect();
+    strip.scrollTo(
+      expanded
+        ? { top: strip.scrollTop + t.top - s.top - (s.height - t.height) / 2 }
+        : { left: strip.scrollLeft + t.left - s.left - (s.width - t.width) / 2 },
+    );
+  }, [expanded]);
 
   const chip = (id: PartCategory | '', label: string) => (
     <button key={id || 'all'} className={`dock-chip ${category === id ? 'active' : ''}`} onClick={() => setCategory(id)}>
@@ -183,8 +201,12 @@ function Catalog({
         {items.map((part) => (
           <button
             key={part.id}
+            data-part={part.id}
             className={`tile ${armedPartId === part.id ? 'armed' : ''}`}
-            onPointerDown={(e) => onTilePointerDown(part.id, e)}
+            onPointerDown={(e) => {
+              focusId.current = part.id;
+              onTilePointerDown(part.id, e);
+            }}
             onClick={() => onTileClick(part.id)}
             title={part.articleNo ? `${part.name} (${part.articleNo})` : part.name}
           >

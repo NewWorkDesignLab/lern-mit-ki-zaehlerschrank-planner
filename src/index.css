@@ -889,8 +889,10 @@ textarea:focus {
   color: var(--text-1);
 }
 
-.multi-sel .btn.danger {
-  align-self: flex-start;
+.props-delete {
+  flex: none;
+  height: 30px;
+  padding: 0 10px;
 }
 
 .props-head {

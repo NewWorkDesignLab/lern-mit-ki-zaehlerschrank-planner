@@ -66,9 +66,14 @@ export function PropertiesSection({
             i
           </button>
         )}
+        {selection.length > 1 && (
+          <button className="btn danger props-delete" onClick={() => onRemoveMany(selection.map((p) => p.uid))}>
+            {selection.length} löschen
+          </button>
+        )}
       </div>
       {selection.length > 1 ? (
-        <MultiSelection selection={selection} onRemoveMany={onRemoveMany} touch={touch} />
+        <MultiSelection selection={selection} touch={touch} />
       ) : selected ? (
         <SelectedPart
           key={selected.uid}
@@ -95,15 +100,7 @@ export function PropertiesSection({
   );
 }
 
-function MultiSelection({
-  selection,
-  onRemoveMany,
-  touch,
-}: {
-  selection: Placement[];
-  onRemoveMany: Props['onRemoveMany'];
-  touch?: boolean;
-}) {
+function MultiSelection({ selection, touch }: { selection: Placement[]; touch?: boolean }) {
   return (
     <div className="props-body multi-sel">
       <b>{selection.length} Bauteile ausgewählt</b>
@@ -115,9 +112,6 @@ function MultiSelection({
           </li>
         ))}
       </ul>
-      <button className="btn danger" onClick={() => onRemoveMany(selection.map((p) => p.uid))}>
-        Auswahl löschen
-      </button>
       {touch ? (
         <p className="muted">
           Gemeinsam verschieben: ein gewähltes Bauteil ziehen. Im Modus „Mehrfachauswahl“ einzelne Bauteile antippen,

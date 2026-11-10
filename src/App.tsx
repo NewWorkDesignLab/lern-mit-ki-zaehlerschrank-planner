@@ -297,6 +297,7 @@ export function App() {
         if (overTrash(e.clientX, e.clientY)) {
           dispatch({ type: 'REMOVE_MANY', uids: p.group });
           setSelectedUids([]);
+          setSelectMode(false);
           notify(`${p.group.length} Bauteile entfernt – ${undoHint} holt sie zurück.`);
           return;
         }
@@ -311,6 +312,7 @@ export function App() {
         const removed = p.uid;
         dispatch({ type: 'REMOVE', uid: removed });
         setSelectedUids((s) => s.filter((x) => x !== removed));
+        setSelectMode(false);
         notify(`Bauteil entfernt – ${undoHint} holt es zurück.`);
         return;
       }
@@ -470,10 +472,12 @@ export function App() {
   };
 
   // --- Aktionen ------------------------------------------------------------------
+  // Löschen beendet auch den Mehrfachauswahl-Modus (Touch).
   const remove = useCallback(
     (uid: string) => {
       dispatch({ type: 'REMOVE', uid });
       setSelectedUids((s) => s.filter((x) => x !== uid));
+      setSelectMode(false);
     },
     [dispatch],
   );
@@ -483,6 +487,7 @@ export function App() {
       if (uids.length === 0) return;
       dispatch({ type: 'REMOVE_MANY', uids });
       setSelectedUids([]);
+      setSelectMode(false);
       if (uids.length > 1) notify(`${uids.length} Bauteile entfernt – ${undoHint} holt sie zurück.`);
     },
     [dispatch, notify, undoHint],
@@ -670,7 +675,8 @@ export function App() {
               className={`tool-btn touch-only ${selectMode ? 'active' : ''}`}
               onClick={() => {
                 setArmedPartId(null);
-                setSelectMode((v) => !v);
+                if (selectMode) setSelectedUids([]);
+                setSelectMode(!selectMode);
               }}
               aria-pressed={selectMode}
               title={
