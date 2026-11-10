@@ -90,6 +90,14 @@ export const IconImage = () => (
   </Icon>
 );
 
+/** Pfeil nach rechts: Export fortsetzen. */
+export const IconArrowRight = () => (
+  <Icon>
+    <path d="M5 12h14" />
+    <path d="m13 6 6 6-6 6" />
+  </Icon>
+);
+
 /** Mehrfachauswahl: gestrichelter Auswahlrahmen mit zwei Häkchen-Feldern. */
 export const IconMultiSelect = () => (
   <Icon>

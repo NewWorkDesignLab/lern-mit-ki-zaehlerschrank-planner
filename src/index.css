@@ -322,46 +322,82 @@ kbd {
   }
 }
 
-/* Platz für den Export-Chip rechts im Feld */
-.toolbar.is-guided:not(.compact) .project-name {
-  padding-right: 84px;
+/* Leeres Feld: blasses Enter-Symbol rechts im Feld */
+.toolbar.is-guided:not(.compact) .project-name.needs-name {
+  padding-right: 32px;
 }
 
-.name-export-chip {
+.name-enter-hint {
   position: absolute;
   /* an der Feldmitte ausrichten – auch wenn die Sprechblase darunter im Fluss steht */
   top: calc(var(--control-h) / 2);
   right: 5px;
   transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  display: grid;
+  place-items: center;
   height: calc(var(--control-h) - 10px);
-  padding: 0 9px;
-  border: 1px solid var(--accent-strong);
+  padding: 0 7px;
+  border: 1px solid rgba(217, 119, 6, 0.35);
   border-radius: 6px;
-  background: var(--accent-strong);
-  color: #fff;
-  font: inherit;
+  color: var(--accent-text);
   font-size: 12px;
   font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.name-export-chip:hover {
-  background: var(--accent-strong-hover);
-  border-color: var(--accent-strong-hover);
-}
-
-/* Noch kein Name: blasser Platzhalter-Chip */
-.name-export-chip.is-idle {
-  background: transparent;
-  border-color: rgba(217, 119, 6, 0.35);
-  color: var(--accent-text);
   opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Ab dem ersten Buchstaben: Export-Button schiebt sich neben dem Feld ein
+   und drückt die Schrankvorlage nach rechts. */
+.btn.primary.name-export-btn {
+  flex: none;
+  max-width: 0;
+  /* Flex-Gap (8px) ausgleichen, solange zugeklappt */
+  margin-left: -8px;
+  padding-left: 0;
+  padding-right: 0;
+  border-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-width 0.25s ease,
+    margin-left 0.25s ease,
+    padding 0.25s ease,
+    opacity 0.2s ease;
+}
+
+.btn.primary.name-export-btn.is-shown {
+  max-width: 160px;
+  margin-left: 0;
+  /* gleiches Innenmaß wie .btn */
+  padding-left: 12px;
+  padding-right: 12px;
+  border-width: 1px;
+  opacity: 1;
+}
+
+/* Nicht die feste Mindestbreite des großen Export-Buttons (.btn.primary) erben */
+.btn.primary.name-export-btn,
+.btn.primary.quick-export {
+  min-width: 0;
+}
+
+/* zugeklappt = disabled: nicht die halbtransparente .btn:disabled-Optik zeigen */
+.btn.name-export-btn:disabled {
+  opacity: 0;
   cursor: default;
+}
+
+/* Enter-Taste als kleine Tastenkappe */
+.name-export-btn .enter-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
 }
 
 /* Export-Button „In Arbeit …“: sanft pulsierender Rand */
@@ -387,6 +423,10 @@ kbd {
   .guide-scrim,
   .btn.primary.is-waiting {
     animation: none;
+  }
+
+  .name-export-btn {
+    transition: none;
   }
 }
 

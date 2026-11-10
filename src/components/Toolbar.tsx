@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { TEMPLATES } from "../catalog/templates";
 import type { Project } from "../domain/types";
 import {
+  IconArrowRight,
   IconImage,
   IconMore,
   IconNew,
@@ -128,20 +129,29 @@ export function Toolbar(props: Props) {
     />
   );
 
-  // Desktop: kleiner Export-Chip rechts im Feld, nur im geführten Export.
+  // Desktop, geführter Export: leer nur ein blasses ↵ im Feld; ab dem ersten
+  // Buchstaben schiebt sich rechts neben dem Feld ein Export-Button ein.
+  const enterHint = guided && !props.compact && needsName && (
+    <span className="name-enter-hint" aria-hidden="true">
+      ↵
+    </span>
+  );
   const exportChip = guided && !props.compact && (
     <button
       type="button"
-      className={`name-export-chip ${needsName ? "is-idle" : ""}`}
+      className={`btn primary name-export-btn ${needsName ? "" : "is-shown"}`}
       // Fokus im Namensfeld lassen
       onMouseDown={(e) => e.preventDefault()}
       onClick={handleExport}
+      disabled={needsName}
       tabIndex={-1}
       title="Exportieren (Enter)"
-      aria-label="Exportieren"
+      aria-hidden={needsName}
     >
-      <span aria-hidden="true">↵</span>
-      {!needsName && " Export"}
+      <span className="enter-key" aria-hidden="true">
+        ↵
+      </span>
+      Enter
     </button>
   );
 
@@ -163,13 +173,13 @@ export function Toolbar(props: Props) {
   // Mobil: Quick-Export ersetzt im geführten Export Rückgängig/Wiederholen.
   const quickExport = (
     <button
-      className={`btn icon primary quick-export ${needsName ? "is-idle" : ""}`}
+      className={`btn primary quick-export ${needsName ? "is-idle" : ""}`}
       onPointerDown={(e) => e.preventDefault()}
       onClick={handleExport}
-      aria-label="Exportieren"
       title="Exportieren"
     >
-      <IconImage />
+      <IconArrowRight />
+      Export
     </button>
   );
 
@@ -279,9 +289,10 @@ export function Toolbar(props: Props) {
           </span>
           <div className="project-name-wrap">
             {nameInput}
-            {exportChip}
+            {enterHint}
             {nameHint}
           </div>
+          {exportChip}
           {templateSelect}
         </div>
 
@@ -338,12 +349,27 @@ export function Toolbar(props: Props) {
                 : "Schrankansicht als PNG-Bild speichern"
             }
           >
-            <IconImage />
-            {props.exporting
-              ? "Exportiere …"
-              : guided
-                ? "In Arbeit …"
-                : "Als Bild exportieren"}
+            {props.exporting ? (
+              <>
+                <IconImage />
+                Exportiere …
+              </>
+            ) : !guided ? (
+              <>
+                <IconImage />
+                Als Bild exportieren
+              </>
+            ) : needsName ? (
+              <>
+                <IconImage />
+                In Arbeit …
+              </>
+            ) : (
+              <>
+                <IconArrowRight />
+                Exportieren
+              </>
+            )}
           </button>
         </div>
       </header>
