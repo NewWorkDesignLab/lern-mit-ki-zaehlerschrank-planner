@@ -49,7 +49,10 @@ interface Props {
 export function Dock(props: Props) {
   const { selectionCount } = props;
   const [tab, setTab] = useState<Tab>('parts');
-  const [expanded, setExpanded] = useState(false);
+  // Halb aufgeklappt – je Ansicht gemerkt, damit eine Auswahl im Schrank das Dock nicht
+  // ungefragt über den Schrank schiebt.
+  const [open, setOpen] = useState<Record<Tab, boolean>>({ parts: false, props: false, bom: false });
+  const expanded = open[tab];
 
   // Auswahl im Schrank -> Eigenschaften, Auswahl aufgehoben -> zurück zum Katalog.
   const hasSelection = selectionCount > 0;
@@ -57,7 +60,7 @@ export function Dock(props: Props) {
     setTab((t) => (hasSelection ? 'props' : t === 'props' ? 'parts' : t));
   }, [hasSelection]);
   useEffect(() => {
-    if (props.draggingFromCatalog) setExpanded(false);
+    if (props.draggingFromCatalog) setOpen((o) => ({ ...o, parts: false }));
   }, [props.draggingFromCatalog]);
 
   const tabBtn = (id: Tab, label: string, badge?: number) => (
@@ -73,25 +76,23 @@ export function Dock(props: Props) {
   );
 
   return (
-    <section className={`dock ${expanded && tab === 'parts' ? 'expanded' : ''}`} aria-label="Katalog und Eigenschaften">
+    <section className={`dock ${expanded ? 'expanded' : ''}`} aria-label="Katalog und Eigenschaften">
       <div className="dock-head" role="tablist">
         {tabBtn('parts', 'Bauteile')}
         {tabBtn('props', 'Eigenschaften', selectionCount > 1 ? selectionCount : undefined)}
         {tabBtn('bom', 'Stückliste', props.bomCount)}
-        {tab === 'parts' && (
-          <button
-            className={`btn icon ghost dock-toggle ${expanded ? 'open' : ''}`}
-            onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded ? 'Katalog einklappen' : 'Katalog aufklappen'}
-            title={expanded ? 'Einklappen' : 'Aufklappen'}
-          >
-            <IconChevronUp />
-          </button>
-        )}
+        <button
+          className={`btn icon ghost dock-toggle ${expanded ? 'open' : ''}`}
+          onClick={() => setOpen((o) => ({ ...o, [tab]: !o[tab] }))}
+          aria-label={expanded ? 'Dock einklappen' : 'Dock aufklappen'}
+          title={expanded ? 'Einklappen' : 'Aufklappen'}
+        >
+          <IconChevronUp />
+        </button>
       </div>
 
       <div className="dock-body">
-        {tab === 'parts' && <Catalog {...props} expanded={expanded} />}
+        {tab === 'parts' && <Catalog {...props} expanded={open.parts} />}
         {tab === 'props' && <div className="dock-scroll">{props.properties}</div>}
         {tab === 'bom' && <div className="dock-scroll">{props.bom}</div>}
       </div>
