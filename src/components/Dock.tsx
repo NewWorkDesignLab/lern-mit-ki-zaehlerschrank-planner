@@ -49,10 +49,8 @@ interface Props {
 export function Dock(props: Props) {
   const { selectionCount } = props;
   const [tab, setTab] = useState<Tab>('parts');
-  // Halb aufgeklappt – je Ansicht gemerkt, damit eine Auswahl im Schrank das Dock nicht
-  // ungefragt über den Schrank schiebt.
-  const [open, setOpen] = useState<Record<Tab, boolean>>({ parts: false, props: false, bom: false });
-  const expanded = open[tab];
+  // Halb aufgeklappt – ein Zustand für alle Ansichten.
+  const [expanded, setExpanded] = useState(false);
 
   // Auswahl im Schrank -> Eigenschaften, Auswahl aufgehoben -> zurück zum Katalog.
   const hasSelection = selectionCount > 0;
@@ -60,7 +58,7 @@ export function Dock(props: Props) {
     setTab((t) => (hasSelection ? 'props' : t === 'props' ? 'parts' : t));
   }, [hasSelection]);
   useEffect(() => {
-    if (props.draggingFromCatalog) setOpen((o) => ({ ...o, parts: false }));
+    if (props.draggingFromCatalog) setExpanded(false);
   }, [props.draggingFromCatalog]);
 
   const tabBtn = (id: Tab, label: string, badge?: number) => (
@@ -83,7 +81,7 @@ export function Dock(props: Props) {
         {tabBtn('bom', 'Stückliste', props.bomCount)}
         <button
           className={`btn icon ghost dock-toggle ${expanded ? 'open' : ''}`}
-          onClick={() => setOpen((o) => ({ ...o, [tab]: !o[tab] }))}
+          onClick={() => setExpanded((v) => !v)}
           aria-label={expanded ? 'Dock einklappen' : 'Dock aufklappen'}
           title={expanded ? 'Einklappen' : 'Aufklappen'}
         >
@@ -92,7 +90,7 @@ export function Dock(props: Props) {
       </div>
 
       <div className="dock-body">
-        {tab === 'parts' && <Catalog {...props} expanded={open.parts} />}
+        {tab === 'parts' && <Catalog {...props} expanded={expanded} />}
         {tab === 'props' && <div className="dock-scroll">{props.properties}</div>}
         {tab === 'bom' && <div className="dock-scroll">{props.bom}</div>}
       </div>
