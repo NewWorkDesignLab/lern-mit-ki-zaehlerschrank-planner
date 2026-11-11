@@ -27,24 +27,157 @@ function el(tag: string, attrs: Record<string, string | number>, text?: string):
   return e;
 }
 
-const dataUrlCache = new Map<string, Promise<string>>();
-function toDataUrl(src: string): Promise<string> {
-  let p = dataUrlCache.get(src);
+// ---------------------------------------------------------------------------
+// Fotos für den Export vorbereiten. Ohne diesen Schritt würde jedes <image> das
+// komplette Quell-PNG als Base64 mitschleppen – pro Bauteil, nicht pro Foto.
+// Stattdessen:
+//   • nur den sichtbaren Ausschnitt (viewBox der umgebenden PhotoImage-<svg>),
+//   • nur so viele Pixel, wie im Export tatsächlich ankommen (× OVERSAMPLE),
+//   • jedes Foto genau einmal in <defs>, Bauteile verweisen per <use>.
+// ---------------------------------------------------------------------------
+
+/** Reserve über der Export-Auflösung, damit Fotos nach dem Skalieren scharf bleiben. */
+const OVERSAMPLE = 2;
+
+interface PreparedImage {
+  url: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const sourceCache = new Map<string, Promise<HTMLImageElement>>();
+function loadSource(src: string): Promise<HTMLImageElement> {
+  let p = sourceCache.get(src);
   if (!p) {
-    p = fetch(src)
-      .then((r) => r.blob())
-      .then(
-        (blob) =>
-          new Promise<string>((resolve, reject) => {
-            const fr = new FileReader();
-            fr.onload = () => resolve(String(fr.result));
-            fr.onerror = () => reject(fr.error);
-            fr.readAsDataURL(blob);
-          }),
-      );
-    dataUrlCache.set(src, p);
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = src;
+    p = img.decode().then(() => img);
+    p.catch(() => sourceCache.delete(src));
+    sourceCache.set(src, p);
   }
   return p;
+}
+
+const preparedCache = new Map<string, Promise<PreparedImage>>();
+/**
+ * Ausschnitt (in Bildpixeln) aus `src` holen, auf höchstens `maxW × maxH`
+ * Pixel verkleinern und als Data-URI liefern. Ergebnis wird gecacht.
+ */
+function prepareImage(
+  src: string,
+  crop: { x: number; y: number; w: number; h: number },
+  maxW: number,
+  maxH: number,
+): Promise<PreparedImage> {
+  const key = `${src}|${crop.x},${crop.y},${crop.w},${crop.h}|${maxW}x${maxH}`;
+  let p = preparedCache.get(key);
+  if (!p) {
+    p = loadSource(src).then((img) => {
+      // Ausschnitt auf das tatsächliche Bild begrenzen.
+      const sx = Math.max(0, Math.floor(crop.x));
+      const sy = Math.max(0, Math.floor(crop.y));
+      const sw = Math.min(img.naturalWidth, Math.ceil(crop.x + crop.w)) - sx;
+      const sh = Math.min(img.naturalHeight, Math.ceil(crop.y + crop.h)) - sy;
+      if (sw <= 0 || sh <= 0) return { url: src, x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
+      const k = Math.min(1, maxW / sw, maxH / sh);
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(sw * k));
+      c.height = Math.max(1, Math.round(sh * k));
+      const ctx = c.getContext('2d');
+      if (!ctx) throw new Error('Canvas nicht verfügbar.');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      // WebP mit Transparenz ist ~7× kleiner als das PNG des Browser-Encoders.
+      // Browser ohne WebP-Encoder (z. B. Safari) liefern automatisch PNG.
+      return { url: c.toDataURL('image/webp', 0.9), x: sx, y: sy, w: sw, h: sh };
+    });
+    p.catch(() => preparedCache.delete(key));
+    preparedCache.set(key, p);
+  }
+  return p;
+}
+
+/** Zahl-Attribut lesen (0, wenn nicht vorhanden). */
+function num(e: Element, name: string): number {
+  return parseFloat(e.getAttribute(name) ?? '') || 0;
+}
+
+/**
+ * Alle <image> im Klon durch <use> auf ein einmaliges, zugeschnittenes und
+ * verkleinertes Foto in `defs` ersetzen.
+ */
+async function embedImages(cabinet: SVGSVGElement, defs: SVGElement) {
+  interface Group {
+    src: string;
+    /** Sichtbarer Bereich im Bild-Koordinatensystem. */
+    crop: { x: number; y: number; w: number; h: number };
+    /** Größte Darstellungsgröße im Export (px). */
+    maxW: number;
+    maxH: number;
+    images: SVGImageElement[];
+  }
+  const groups = new Map<string, Group>();
+
+  for (const img of cabinet.querySelectorAll('image')) {
+    const src = img.getAttribute('href');
+    if (!src) continue;
+    const imgW = num(img, 'width');
+    const imgH = num(img, 'height');
+    // PhotoImage: <svg x y width height viewBox="crop"><image width height/></svg>
+    const holder = img.parentElement;
+    const vb = holder?.tagName.toLowerCase() === 'svg' ? holder.getAttribute('viewBox') : null;
+    let crop = { x: 0, y: 0, w: imgW, h: imgH };
+    let outW = imgW;
+    let outH = imgH;
+    if (holder && vb) {
+      const [x, y, w, h] = vb.split(/[\s,]+/).map(Number);
+      if ([x, y, w, h].every(Number.isFinite) && w > 0 && h > 0) {
+        crop = { x, y, w, h };
+        // Darstellungsgröße in mm (Schrank-Einheiten); "contain"-Einpassung.
+        const boxW = num(holder, 'width') || w;
+        const boxH = num(holder, 'height') || h;
+        const fit = Math.min(boxW / w, boxH / h);
+        outW = w * fit;
+        outH = h * fit;
+      }
+    }
+    if (!imgW || !imgH) continue;
+    const key = `${src}|${crop.x},${crop.y},${crop.w},${crop.h}`;
+    let g = groups.get(key);
+    if (!g) {
+      g = { src, crop, maxW: 0, maxH: 0, images: [] };
+      groups.set(key, g);
+    }
+    // Auf 8 px runden, damit der Cache zwischen Exporten greift.
+    g.maxW = Math.max(g.maxW, Math.ceil((outW * SCALE * OVERSAMPLE) / 8) * 8);
+    g.maxH = Math.max(g.maxH, Math.ceil((outH * SCALE * OVERSAMPLE) / 8) * 8);
+    g.images.push(img);
+  }
+
+  let n = 0;
+  await Promise.all(
+    [...groups.values()].map(async (g) => {
+      const prepared = await prepareImage(g.src, g.crop, g.maxW, g.maxH);
+      const id = `pngx-img-${n++}`;
+      defs.appendChild(
+        el('image', {
+          id,
+          href: prepared.url,
+          x: prepared.x,
+          y: prepared.y,
+          width: prepared.w,
+          height: prepared.h,
+          preserveAspectRatio: 'none',
+        }),
+      );
+      for (const img of g.images) {
+        img.replaceWith(el('use', { href: `#${id}` }));
+      }
+    }),
+  );
 }
 
 /** Text auf eine maximale Zeichenzahl kürzen. */
@@ -56,12 +189,8 @@ export async function exportPng(svg: SVGSVGElement, project: Project, geo: Cabin
   // 1) Schrank klonen und für den Export bereinigen
   const cabinet = svg.cloneNode(true) as SVGSVGElement;
   cabinet.querySelectorAll('[data-noexport]').forEach((n) => n.remove());
-  await Promise.all(
-    [...cabinet.querySelectorAll('image')].map(async (img) => {
-      const href = img.getAttribute('href');
-      if (href && !href.startsWith('data:')) img.setAttribute('href', await toDataUrl(href));
-    }),
-  );
+  const defs = el('defs', {});
+  await embedImages(cabinet, defs);
 
   // 2) Layout des Gesamtbilds (in mm)
   const W = Math.max(geo.width + MARGIN * 2, 560);
@@ -85,6 +214,7 @@ export async function exportPng(svg: SVGSVGElement, project: Project, geo: Cabin
     height: H * SCALE,
     viewBox: `0 0 ${W} ${H}`,
   }) as SVGSVGElement;
+  root.appendChild(defs);
   root.appendChild(el('rect', { x: 0, y: 0, width: W, height: H, fill: '#ffffff' }));
 
   // Kopf
@@ -163,7 +293,8 @@ export async function exportPng(svg: SVGSVGElement, project: Project, geo: Cabin
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(W * SCALE);
     canvas.height = Math.round(H * SCALE);
-    const ctx = canvas.getContext('2d');
+    // Hintergrund ist ohnehin weiß – ein opakes Canvas spart Alpha-Arbeit.
+    const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('Canvas nicht verfügbar.');
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
