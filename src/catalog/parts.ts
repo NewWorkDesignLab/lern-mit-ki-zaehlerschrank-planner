@@ -67,7 +67,6 @@ export const CATALOG: CatalogPart[] = [
     poles: 3,
     specs: { Nennstrom: '35 A', Charakteristik: 'E (selektiv)', Pole: '3' },
     details: { Gerätereihe: 'S750DR', Norm: 'DIN VDE 0641-21', Bemessungsspannung: '400 V AC', Schaltvermögen: '25 kA', Plombierbar: 'ja' },
-    art: ART.sls,
   },
   {
     id: 'msb-zaehler',
@@ -78,7 +77,6 @@ export const CATALOG: CatalogPart[] = [
     mount: 'meter',
     specs: { Ausführung: 'Zweirichtungszähler', Befestigung: 'Zählerplatz' },
     details: { Bereitstellung: 'durch Messstellenbetreiber', Messung: '3-phasig', Befestigung: 'Dreipunktbefestigung / BKE' },
-    art: ART.meter,
   },
 
   // --- Überspannungsschutz -----------------------------------------------
