@@ -5,7 +5,7 @@
 // entfernt. Sichtbare Optik nur über Präsentationsattribute – siehe PartGraphic.
 // ---------------------------------------------------------------------------
 
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { getPart } from '../catalog/parts';
 import type { CabinetGeo, ZoneGeo } from '../domain/geometry';
@@ -87,6 +87,31 @@ export function CabinetCanvas({
     ro.observe(svg);
     return () => ro.disconnect();
   }, [svgRef, geo]);
+
+  // Chrome/Brave beachten touch-action an SVG-Kindelementen (<g>) nicht: Ein Wisch über ein
+  // gewähltes Teil würde sonst den Schrank scrollen, der Browser bricht den Pointer ab
+  // (pointercancel) und das Teil springt zurück. Darum hier das Scrollen selbst unterbinden.
+  const selectModeRef = useRef(selectMode);
+  selectModeRef.current = selectMode;
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || !touchPan) return;
+    let hold = false;
+    const start = (e: TouchEvent) => {
+      const t = e.target as Element | null;
+      hold = e.touches.length === 1 && (selectModeRef.current || !!t?.closest?.('.placed-part.is-selected'));
+    };
+    const move = (e: TouchEvent) => {
+      if (e.touches.length !== 1) hold = false; // Zwei Finger: Zoom-Hook übernimmt.
+      if (hold && e.cancelable) e.preventDefault();
+    };
+    svg.addEventListener('touchstart', start, { passive: true });
+    svg.addEventListener('touchmove', move, { passive: false });
+    return () => {
+      svg.removeEventListener('touchstart', start);
+      svg.removeEventListener('touchmove', move);
+    };
+  }, [svgRef, touchPan]);
 
   const selectedSet = new Set(selectedUids);
   const movingSet = new Set(movingUids);
