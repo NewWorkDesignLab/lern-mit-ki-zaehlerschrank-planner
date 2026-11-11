@@ -77,6 +77,7 @@ export const CATALOG: CatalogPart[] = [
     mount: 'meter',
     specs: { Ausführung: 'Zweirichtungszähler', Befestigung: 'Zählerplatz' },
     details: { Bereitstellung: 'durch Messstellenbetreiber', Messung: '3-phasig', Befestigung: 'Dreipunktbefestigung / BKE' },
+    art: ART.meter,
   },
 
   // --- Überspannungsschutz -----------------------------------------------

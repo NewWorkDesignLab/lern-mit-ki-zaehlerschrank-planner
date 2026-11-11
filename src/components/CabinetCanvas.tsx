@@ -13,7 +13,7 @@ import { FRAME, PHOTO_MAX_H, RAIL_H, TE_MM, getZoneGeo } from '../domain/geometr
 import { usedTe } from '../domain/layout';
 import type { DropTarget } from '../domain/target';
 import type { CatalogPart, Placement, Project } from '../domain/types';
-import { PartOnRail, PhotoImage, fitArt } from './PartGraphic';
+import { METER_ASPECT, MeterDevice, PartOnRail, PhotoImage, fitArt } from './PartGraphic';
 
 const FONT = "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
@@ -322,7 +322,11 @@ function partBox(geo: CabinetGeo, part: CatalogPart, field: number, zone: number
   if (z.zone.kind === 'meter') {
     const boxW = z.w - 40;
     const boxH = z.h - 44;
-    const s = part.art ? fitArt(part.art, boxW, boxH) : { w: boxW, h: boxH };
+    const s = part.art
+      ? fitArt(part.art, boxW, boxH)
+      : boxW / boxH > METER_ASPECT
+        ? { w: boxH * METER_ASPECT, h: boxH }
+        : { w: boxW, h: boxW / METER_ASPECT };
     return { kind: 'meter' as const, z, x: z.x + (z.w - s.w) / 2, y: z.y + 24 + (boxH - s.h) / 2, w: s.w, h: s.h };
   }
   const w = part.widthTE * TE_MM;
@@ -335,7 +339,7 @@ function PartShape({ part, box }: { part: CatalogPart; box: NonNullable<ReturnTy
     return part.art ? (
       <PhotoImage art={part.art} x={box.x} y={box.y} w={box.w} h={box.h} />
     ) : (
-      <rect x={box.x} y={box.y} width={box.w} height={box.h} rx={4} fill="#e0e4e8" stroke="#8d96a1" />
+      <MeterDevice x={box.x} y={box.y} w={box.w} h={box.h} />
     );
   }
   return <PartOnRail part={part} x={box.x} w={box.w} cy={box.z.railY} maxH={PHOTO_MAX_H} />;

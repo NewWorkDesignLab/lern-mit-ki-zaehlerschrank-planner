@@ -11,6 +11,7 @@ import lsB16 from '../assets/parts/ls-b16.png';
 import lsB25 from '../assets/parts/ls-b25.png';
 import lsK20 from '../assets/parts/ls-k20.png';
 import ussTyp2 from '../assets/parts/uss-typ2.png';
+import zaehlerMme from '../assets/parts/zaehler-mme.png';
 
 const art = (src: string, w: number, h: number, x: number, y: number, cw: number, ch: number): PartArt => ({
   src,
@@ -27,4 +28,5 @@ export const ART = {
   lsB16: art(lsB16, 600, 600, 241, 17, 118, 567),
   lsB25: art(lsB25, 600, 600, 237, 16, 125, 568),
   fiLsK20: art(lsK20, 600, 600, 94, 69, 412, 478),
+  meter: art(zaehlerMme, 602, 1038, 0, 0, 602, 1038),
 };
